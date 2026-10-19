@@ -1,6 +1,6 @@
 ﻿{
     "Version":  "2.1.0-preview",
-    "BuiltAtUTC":  "2026-10-19T15:44:36.9288654Z",
+    "BuiltAtUTC":  "2026-10-19T15:51:46.4961101Z",
     "Sources":  [
                     {
                         "Path":  "src/WinBreathe.Engine.psm1",
