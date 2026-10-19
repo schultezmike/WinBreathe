@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "Conservative": {
+      "summary": "Only zero-impact tweaks. Nothing you use day-to-day changes behaviour.",
+      "recommendedFor": "16 GB+ RAM or SSD systems that just want less background waste."
+    },
+    "Balanced": {
+      "summary": "Browser background trimming, telemetry off, Widgets off, memory compression and HDD-aware paging.",
+      "recommendedFor": "8-12 GB RAM laptops and desktops (the sweet spot)."
+    },
+    "Aggressive": {
+      "summary": "Everything in Balanced plus stricter background-app limits and visual effect trimming.",
+      "recommendedFor": "4-6 GB RAM systems or mechanical (HDD) drives under heavy load."
+    }
+  },
+  "protectedProcesses": [
+    "System", "Idle", "Secure System", "Registry", "smss", "csrss", "wininit", "services", "lsass", "winlogon",
+    "dwm", "explorer", "svchost", "fontdrvhost", "sihost", "ctfmon", "audiodg", "spoolsv", "conhost",
+    "MsMpEng", "MpDefenderCoreService", "NisSrv", "SecurityHealthService", "SecurityHealthSystray", "smartscreen",
+    "OpenVPNConnect", "openvpn", "openvpnserv", "wireguard", "tailscaled", "tailscale-ipn",
+    "ChatGPT", "codex", "Antigravity", "language_server", "Code", "Cursor", "Claude", "devenv", "idea64", "pycharm64",
+    "node", "git", "python", "pythonw", "java", "powershell", "pwsh", "cmd", "WindowsTerminal", "OpenConsole"
+  ],
+  "flushTargets": [
+    { "name": "SearchHost", "label": "Windows Search UI host (restarts on demand)" },
+    { "name": "CrossDeviceResume", "label": "Cross-device resume helper" },
+    { "name": "Widgets", "label": "Windows Widgets board" },
+    { "name": "WidgetService", "label": "Windows Widgets service host" }
+  ],
+  "optionalServices": [
+    { "pattern": "postgresql*", "label": "PostgreSQL database server" },
+    { "pattern": "MySQL*", "label": "MySQL database server" },
+    { "pattern": "MariaDB*", "label": "MariaDB database server" },
+    { "pattern": "MSSQL*", "label": "Microsoft SQL Server" },
+    { "pattern": "MongoDB", "label": "MongoDB database server" },
+    { "pattern": "Redis*", "label": "Redis server" },
+    { "pattern": "gupdate", "label": "Google Update" },
+    { "pattern": "gupdatem", "label": "Google Update (manual)" },
+    { "pattern": "brave", "label": "Brave Update" },
+    { "pattern": "AdobeARMservice", "label": "Adobe Acrobat Update" },
+    { "pattern": "Foxit*Update*", "label": "Foxit PDF Update" },
+    { "pattern": "MozillaMaintenance", "label": "Mozilla Maintenance Service" },
+    { "pattern": "CoworkVMService", "label": "Claude background VM service" }
+  ],
+  "tweaks": [
+    {
+      "id": "edge.startupBoost",
+      "category": "Browser",
+      "title": "Disable Edge Startup Boost",
+      "description": "Stops Microsoft Edge from pre-loading itself at Windows sign-in and staying resident in RAM when no window is open.",
+      "impact": "Saves roughly 100-300 MB while Edge is closed. Edge's first launch takes about a second longer.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "StartupBoostEnabled", "kind": "DWord", "value": 0 } ]
+    },
+    {
+      "id": "edge.backgroundMode",
+      "category": "Browser",
+      "title": "Stop Edge running in the background",
+      "description": "Edge normally keeps extensions and apps running after the last window closes. This makes Edge fully exit when you close it.",
+      "impact": "Frees all Edge memory when closed. Extensions that notify you in the background will not run while Edge is closed.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 } ]
+    },
+    {
+      "id": "edge.sleepingTabs",
+      "category": "Browser",
+      "title": "Put idle Edge tabs to sleep",
+      "description": "Enables Sleeping Tabs and sets how quickly inactive tabs release their memory (15 min Conservative, 5 min Balanced, 30 s Aggressive).",
+      "impact": "Large savings with many tabs open. A sleeping tab reloads when you click it.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "SleepingTabsEnabled", "kind": "DWord", "value": 1 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "SleepingTabsTimeout", "kind": "DWord", "value": 300,
+          "valueByProfile": { "Conservative": 900, "Balanced": 300, "Aggressive": 30 } }
+      ]
+    },
+    {
+      "id": "edge.efficiencyMode",
+      "category": "Browser",
+      "title": "Enable Edge Efficiency Mode",
+      "description": "Lets Edge throttle background tabs and reduce CPU and memory work when tabs are not visible.",
+      "impact": "Lower background CPU and memory churn. Background animations may run slower.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EfficiencyModeEnabled", "kind": "DWord", "value": 1 } ]
+    },
+    {
+      "id": "edge.sidebar",
+      "category": "Browser",
+      "title": "Turn off the Edge sidebar",
+      "description": "Removes the Edge sidebar and the standalone sidebar, each of which hosts extra web views (Copilot, Shopping, Tools).",
+      "impact": "Removes several hidden renderer processes. The sidebar button disappears from Edge.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "HubsSidebarEnabled", "kind": "DWord", "value": 0 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "StandaloneHubsSidebarEnabled", "kind": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "edge.copilot",
+      "category": "Browser",
+      "title": "Turn off Copilot in Edge",
+      "description": "Disables the built-in Copilot integration and its page-context reader in Edge.",
+      "impact": "Removes the Copilot web view and its background work. Use copilot.microsoft.com in a tab if needed.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeCopilotEnabled", "kind": "DWord", "value": 0 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiscoverPageContextEnabled", "kind": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "edge.networkPrediction",
+      "category": "Browser",
+      "title": "Stop Edge pre-loading pages",
+      "description": "Disables speculative pre-connecting and pre-rendering of links Edge thinks you might click next.",
+      "impact": "Fewer hidden renderer processes and less network use. Some links open a fraction of a second slower.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "NetworkPredictionOptions", "kind": "DWord", "value": 2 } ]
+    },
+    {
+      "id": "edge.extras",
+      "category": "Browser",
+      "title": "Turn off Edge shopping, recommendations and Math Solver",
+      "description": "Disables the shopping assistant, in-browser recommendations and the Math Solver feature.",
+      "impact": "Less background scripting on every page you visit.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeShoppingAssistantEnabled", "kind": "DWord", "value": 0 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowRecommendationsEnabled", "kind": "DWord", "value": 0 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "MathSolverEnabled", "kind": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "edge.diskCache",
+      "category": "Browser",
+      "title": "Cap the Edge disk cache at 256 MB",
+      "description": "Limits how large Edge's on-disk cache can grow.",
+      "impact": "Less disk churn, especially on mechanical drives. Rarely visited sites may re-download assets.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiskCacheSize", "kind": "DWord", "value": 268435456 } ]
+    },
+    {
+      "id": "chrome.backgroundMode",
+      "category": "Browser",
+      "title": "Stop Chrome and Brave running in the background",
+      "description": "Makes Google Chrome and Brave fully exit when their last window is closed.",
+      "impact": "Frees all browser memory when closed. Has no effect if neither browser is installed.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "win.widgets",
+      "category": "Windows",
+      "title": "Turn off Windows Widgets",
+      "description": "Disables the Widgets board (news, weather, stocks), which runs its own web view host in the background.",
+      "impact": "Typically saves 100-250 MB. The Widgets button disappears from the taskbar.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "kind": "DWord", "value": 0 } ]
+    },
+    {
+      "id": "win.webSearch",
+      "category": "Windows",
+      "title": "Remove Bing web results from Start search",
+      "description": "Start menu search shows only local apps, files and settings instead of also querying Bing.",
+      "impact": "Faster, lighter Start search with no network round-trip. Web results no longer appear in Start.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "DisableWebSearch", "kind": "DWord", "value": 1 },
+        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "ConnectedSearchUseWeb", "kind": "DWord", "value": 0 },
+        { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableSearchBoxSuggestions", "kind": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "win.gameDvr",
+      "category": "Windows",
+      "title": "Turn off Game DVR background recording",
+      "description": "Disables Xbox Game Bar background capture, which can keep recording buffers in memory.",
+      "impact": "Saves memory and GPU work. Game Bar clip recording stops working.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR", "name": "AllowGameDVR", "kind": "DWord", "value": 0 } ]
+    },
+    {
+      "id": "win.backgroundApps",
+      "category": "Windows",
+      "title": "Block Store apps from running in the background",
+      "description": "Prevents Microsoft Store (UWP) apps from running background tasks when they are not open.",
+      "impact": "Noticeable savings on low-RAM systems. Store apps such as Mail or Phone Link only update or notify while open.",
+      "risk": "Moderate",
+      "profiles": ["Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppPrivacy", "name": "LetAppsRunInBackground", "kind": "DWord", "value": 2 } ]
+    },
+    {
+      "id": "win.transparency",
+      "category": "Windows",
+      "title": "Turn off transparency effects",
+      "description": "Disables the blur and transparency effects on the taskbar, Start menu and windows for the current user.",
+      "impact": "Slightly less GPU and compositor memory. Windows looks flatter.",
+      "risk": "Safe",
+      "profiles": ["Aggressive"],
+      "type": "registry",
+      "entries": [ { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "EnableTransparency", "kind": "DWord", "value": 0 } ]
+    },
+    {
+      "id": "svc.diagTrack",
+      "category": "Services",
+      "title": "Disable Connected User Experiences and Telemetry",
+      "description": "Turns off the DiagTrack service, which collects and uploads diagnostic data in the background.",
+      "impact": "Less background CPU, disk and network activity. Windows Update and Defender are not affected.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "service",
+      "service": "DiagTrack",
+      "startupType": "Disabled"
+    },
+    {
+      "id": "svc.mapsBroker",
+      "category": "Services",
+      "title": "Set Downloaded Maps Manager to manual",
+      "description": "The offline maps service only starts when the Maps app needs it.",
+      "impact": "Small saving. No visible change unless you use offline maps, which still work on demand.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "service",
+      "service": "MapsBroker",
+      "startupType": "Manual"
+    },
+    {
+      "id": "svc.dmwappush",
+      "category": "Services",
+      "title": "Disable WAP Push message routing",
+      "description": "Turns off dmwappushservice, a telemetry and device-management message router that home users rarely need.",
+      "impact": "Small saving. Do not apply on work PCs managed by an MDM such as Intune.",
+      "risk": "Moderate",
+      "profiles": ["Aggressive"],
+      "type": "service",
+      "service": "dmwappushservice",
+      "startupType": "Disabled"
+    },
+    {
+      "id": "svc.cdpSvc",
+      "category": "Services",
+      "title": "Disable Connected Devices Platform",
+      "description": "Turns off CDPSvc, which powers Nearby Sharing, Phone Link and cross-device app resume.",
+      "impact": "Saves memory and background network chatter. Nearby Sharing and Phone Link stop working.",
+      "risk": "Moderate",
+      "profiles": ["Aggressive"],
+      "type": "service",
+      "service": "CDPSvc",
+      "startupType": "Disabled"
+    },
+    {
+      "id": "svc.wsearch",
+      "category": "Services",
+      "title": "Disable the Windows Search indexer (opt-in)",
+      "description": "Stops the indexer that continuously scans your files. Recommended only if you use an alternative such as Everything.",
+      "impact": "Big win on mechanical drives: no background indexing I/O. Start, Outlook and Settings search become slower and less complete.",
+      "risk": "Advanced",
+      "profiles": [],
+      "type": "service",
+      "service": "WSearch",
+      "startupType": "Disabled"
+    },
+    {
+      "id": "mem.compression",
+      "category": "Memory",
+      "title": "Enable memory compression",
+      "description": "Windows compresses rarely used memory pages in RAM instead of writing them to the page file on disk.",
+      "impact": "More effective RAM and fewer slow disk reads. This is the Windows default; WinBreathe makes sure it was not turned off.",
+      "risk": "Safe",
+      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "type": "mmagent",
+      "feature": "MemoryCompression",
+      "enabled": true
+    },
+    {
+      "id": "mem.pageCombining",
+      "category": "Memory",
+      "title": "Enable memory page combining",
+      "description": "Windows merges identical memory pages from different processes into a single shared copy.",
+      "impact": "Small RAM saving at negligible CPU cost.",
+      "risk": "Safe",
+      "profiles": ["Balanced", "Aggressive"],
+      "type": "mmagent",
+      "feature": "PageCombining",
+      "enabled": true
+    },
+    {
+      "id": "mem.preLaunch",
+      "category": "Memory",
+      "title": "Stop app pre-launch on mechanical drives",
+      "description": "Disables Application Pre-Launch, which speculatively loads Store apps into memory at boot. Only offered on HDD systems.",
+      "impact": "Quieter, faster boot on HDDs. Some Store apps open slightly slower the first time.",
+      "risk": "Moderate",
+      "profiles": ["Balanced", "Aggressive"],
+      "condition": "hddOnly",
+      "type": "mmagent",
+      "feature": "ApplicationPreLaunch",
+      "enabled": false
+    },
+    {
+      "id": "mem.pagefile",
+      "category": "Memory",
+      "title": "Use a fixed-size page file",
+      "description": "Replaces the auto-growing page file with a fixed size (1.5 x RAM, 4-12 GB) so it never fragments on a hard drive. Skipped if free disk space would drop below 15 GB.",
+      "impact": "Prevents stutters caused by page-file growth on HDDs and low-RAM PCs. Takes effect after a reboot.",
+      "risk": "Moderate",
+      "profiles": ["Balanced", "Aggressive"],
+      "condition": "lowRamOrHdd",
+      "type": "pagefile"
+    }
+  ]
+}

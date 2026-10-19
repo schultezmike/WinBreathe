@@ -1,0 +1,29 @@
+name: Feature or Tweak Request
+description: Propose a new optimization tweak, profile rule, or UI improvement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature or Tweak Summary
+      description: Describe the optimization, registry policy, or UI improvement you would like to see.
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Estimated Risk Tier
+      options:
+        - Safe (Zero workflow impact)
+        - Moderate (Noticeable behavior change)
+        - Advanced (Opt-in only)
+    validations:
+      required: true
+  - type: textarea
+    id: reversibility
+    attributes:
+      label: How is this tweak reversed / undone?
+      description: Every tweak in WinBreathe must be 100% reversible via Snapshot Undo.
+    validations:
+      required: true

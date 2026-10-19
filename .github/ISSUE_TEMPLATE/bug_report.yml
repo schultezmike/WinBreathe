@@ -1,0 +1,39 @@
+name: Bug Report
+description: Report a bug, unexpected behavior, or compatibility issue in WinBreathe
+title: "[BUG] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug in **WinBreathe**!
+  - type: dropdown
+    id: version
+    attributes:
+      label: WinBreathe Version
+      options:
+        - v2.0.0 (Latest)
+        - v1.1.0 (Legacy)
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware & Windows Build
+      description: Output of `WinBreathe.exe -Status` or your Windows version, RAM size, and SSD/HDD type.
+      placeholder: "Windows 11 24H2 (Build 26200), 8 GB RAM, 1 TB HDD"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the issue and steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Paste any relevant lines from `%ProgramData%\WinBreathe\winbreathe.log`.
+      render: powershell
