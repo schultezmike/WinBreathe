@@ -126,6 +126,19 @@ flowchart LR
 
 ---
 
+## 🪟 Windows OS Compatibility & Roadmap
+
+WinBreathe is designed to dynamically adapt to the underlying Windows version and hardware:
+
+| Operating System | Compatibility Status | Coverage & Behavior |
+| :--- | :---: | :--- |
+| **Windows 11** (21H2, 22H2, 23H2, 24H2+) | **Full Support (Current)** | Complete feature set active: Widgets, Bing search removal, Edge policies, Kernel Memory Compression, and contiguous fixed pagefile. |
+| **Windows 10** (1809, 20H2, 21H2, 22H2) | **Full Support (Current)** | Complete feature set active: Chromium/Edge background throttling, Sleeping Tabs, `DiagTrack` telemetry, Memory Compression, fixed HDD pagefile, and Startup Manager. |
+| **Windows Server** (2016, 2019, 2022, 2025) | **Full Support (Current)** | Full server support: Policy locks, memory compression, process protection, and pagefile controls active. Consumer features safely bypassed. |
+| **Windows 7 SP1 & Windows 8.1** | **Roadmap (v2.1.0 Release)** | **Targeted for the upcoming v2.1.0 milestone**: Adding legacy kernel memory management fallback, classic Superfetch/Prefetch tuning, classic IE/legacy Chromium flags, and .NET Framework 4.5 fallback paths to support legacy student PCs. |
+
+---
+
 ## Quick Start
 
 ### Option 1: Standalone Executable (Recommended)

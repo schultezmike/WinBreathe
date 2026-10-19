@@ -17,3 +17,8 @@ WinBreathe uses official Microsoft Edge Group Policy registry keys under `HKLM:\
 
 ### 5. Why is disabling Windows Search (`svc.wsearch`) unchecked by default?
 While stopping the `WSearch` indexer eliminates heavy background disk I/O on mechanical hard drives, it also breaks instant file searching in the Start Menu, File Explorer, and classic Outlook. Therefore, `svc.wsearch` is marked **Advanced (Opt-In)** and is never applied unless you explicitly check it in the **Optimize Tweaks** tab (recommended only if you use a third-party search utility like [Voidtools Everything](https://www.voidtools.com/)).
+
+### 6. Which Windows versions are supported?
+- **Windows 11 & Windows 10 (1809+)**: Fully supported out of the box with zero external dependencies.
+- **Windows Server (2016, 2019, 2022, 2025)**: Fully supported with automatic bypass of consumer features.
+- **Windows 7 & Windows 8.1**: Scheduled for full legacy support in the upcoming **v2.1.0 release**, including legacy kernel memory tuning, Superfetch controls, and classic Chromium optimization for older student laptops.
