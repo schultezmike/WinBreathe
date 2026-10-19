@@ -1,47 +1,143 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profiles": {
     "Conservative": {
       "summary": "Only zero-impact tweaks. Nothing you use day-to-day changes behaviour.",
       "recommendedFor": "16 GB+ RAM or SSD systems that just want less background waste."
     },
     "Balanced": {
-      "summary": "Browser background trimming, telemetry off, Widgets off, memory compression and HDD-aware paging.",
+      "summary": "Browser background trimming, telemetry off, SuperFetch/SysMain tuning, memory compression and HDD-aware paging.",
       "recommendedFor": "8-12 GB RAM laptops and desktops (the sweet spot)."
     },
     "Aggressive": {
-      "summary": "Everything in Balanced plus stricter background-app limits and visual effect trimming.",
+      "summary": "Everything in Balanced plus stricter background-app limits and visual effect/Aero trimming.",
       "recommendedFor": "4-6 GB RAM systems or mechanical (HDD) drives under heavy load."
     }
   },
   "protectedProcesses": [
-    "System", "Idle", "Secure System", "Registry", "smss", "csrss", "wininit", "services", "lsass", "winlogon",
-    "dwm", "explorer", "svchost", "fontdrvhost", "sihost", "ctfmon", "audiodg", "spoolsv", "conhost",
-    "MsMpEng", "MpDefenderCoreService", "NisSrv", "SecurityHealthService", "SecurityHealthSystray", "smartscreen",
-    "OpenVPNConnect", "openvpn", "openvpnserv", "wireguard", "tailscaled", "tailscale-ipn",
-    "ChatGPT", "codex", "Antigravity", "language_server", "Code", "Cursor", "Claude", "devenv", "idea64", "pycharm64",
-    "node", "git", "python", "pythonw", "java", "powershell", "pwsh", "cmd", "WindowsTerminal", "OpenConsole"
+    "System",
+    "Idle",
+    "Secure System",
+    "Registry",
+    "smss",
+    "csrss",
+    "wininit",
+    "services",
+    "lsass",
+    "winlogon",
+    "dwm",
+    "explorer",
+    "svchost",
+    "fontdrvhost",
+    "sihost",
+    "ctfmon",
+    "audiodg",
+    "spoolsv",
+    "conhost",
+    "MsMpEng",
+    "MpDefenderCoreService",
+    "NisSrv",
+    "SecurityHealthService",
+    "SecurityHealthSystray",
+    "smartscreen",
+    "OpenVPNConnect",
+    "openvpn",
+    "openvpnserv",
+    "wireguard",
+    "tailscaled",
+    "tailscale-ipn",
+    "ChatGPT",
+    "codex",
+    "Antigravity",
+    "language_server",
+    "Code",
+    "Cursor",
+    "Claude",
+    "devenv",
+    "idea64",
+    "pycharm64",
+    "node",
+    "git",
+    "python",
+    "pythonw",
+    "java",
+    "powershell",
+    "pwsh",
+    "cmd",
+    "WindowsTerminal",
+    "OpenConsole"
   ],
   "flushTargets": [
-    { "name": "SearchHost", "label": "Windows Search UI host (restarts on demand)" },
-    { "name": "CrossDeviceResume", "label": "Cross-device resume helper" },
-    { "name": "Widgets", "label": "Windows Widgets board" },
-    { "name": "WidgetService", "label": "Windows Widgets service host" }
+    {
+      "name": "SearchHost",
+      "label": "Windows Search UI host (restarts on demand)"
+    },
+    {
+      "name": "CrossDeviceResume",
+      "label": "Cross-device resume helper"
+    },
+    {
+      "name": "Widgets",
+      "label": "Windows Widgets board"
+    },
+    {
+      "name": "WidgetService",
+      "label": "Windows Widgets service host"
+    }
   ],
   "optionalServices": [
-    { "pattern": "postgresql*", "label": "PostgreSQL database server" },
-    { "pattern": "MySQL*", "label": "MySQL database server" },
-    { "pattern": "MariaDB*", "label": "MariaDB database server" },
-    { "pattern": "MSSQL*", "label": "Microsoft SQL Server" },
-    { "pattern": "MongoDB", "label": "MongoDB database server" },
-    { "pattern": "Redis*", "label": "Redis server" },
-    { "pattern": "gupdate", "label": "Google Update" },
-    { "pattern": "gupdatem", "label": "Google Update (manual)" },
-    { "pattern": "brave", "label": "Brave Update" },
-    { "pattern": "AdobeARMservice", "label": "Adobe Acrobat Update" },
-    { "pattern": "Foxit*Update*", "label": "Foxit PDF Update" },
-    { "pattern": "MozillaMaintenance", "label": "Mozilla Maintenance Service" },
-    { "pattern": "CoworkVMService", "label": "Claude background VM service" }
+    {
+      "pattern": "postgresql*",
+      "label": "PostgreSQL database server"
+    },
+    {
+      "pattern": "MySQL*",
+      "label": "MySQL database server"
+    },
+    {
+      "pattern": "MariaDB*",
+      "label": "MariaDB database server"
+    },
+    {
+      "pattern": "MSSQL*",
+      "label": "Microsoft SQL Server"
+    },
+    {
+      "pattern": "MongoDB",
+      "label": "MongoDB database server"
+    },
+    {
+      "pattern": "Redis*",
+      "label": "Redis server"
+    },
+    {
+      "pattern": "gupdate",
+      "label": "Google Update"
+    },
+    {
+      "pattern": "gupdatem",
+      "label": "Google Update (manual)"
+    },
+    {
+      "pattern": "brave",
+      "label": "Brave Update"
+    },
+    {
+      "pattern": "AdobeARMservice",
+      "label": "Adobe Acrobat Update"
+    },
+    {
+      "pattern": "Foxit*Update*",
+      "label": "Foxit PDF Update"
+    },
+    {
+      "pattern": "MozillaMaintenance",
+      "label": "Mozilla Maintenance Service"
+    },
+    {
+      "pattern": "CoworkVMService",
+      "label": "Claude background VM service"
+    }
   ],
   "tweaks": [
     {
@@ -51,9 +147,24 @@
       "description": "Stops Microsoft Edge from pre-loading itself at Windows sign-in and staying resident in RAM when no window is open.",
       "impact": "Saves roughly 100-300 MB while Edge is closed. Edge's first launch takes about a second longer.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "StartupBoostEnabled", "kind": "DWord", "value": 0 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "StartupBoostEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
     },
     {
       "id": "edge.backgroundMode",
@@ -62,9 +173,24 @@
       "description": "Edge normally keeps extensions and apps running after the last window closes. This makes Edge fully exit when you close it.",
       "impact": "Frees all Edge memory when closed. Extensions that notify you in the background will not run while Edge is closed.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "BackgroundModeEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
     },
     {
       "id": "edge.sleepingTabs",
@@ -73,12 +199,34 @@
       "description": "Enables Sleeping Tabs and sets how quickly inactive tabs release their memory (15 min Conservative, 5 min Balanced, 30 s Aggressive).",
       "impact": "Large savings with many tabs open. A sleeping tab reloads when you click it.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "SleepingTabsEnabled", "kind": "DWord", "value": 1 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "SleepingTabsTimeout", "kind": "DWord", "value": 300,
-          "valueByProfile": { "Conservative": 900, "Balanced": 300, "Aggressive": 30 } }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "SleepingTabsEnabled",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "SleepingTabsTimeout",
+          "kind": "DWord",
+          "value": 300,
+          "valueByProfile": {
+            "Conservative": 900,
+            "Balanced": 300,
+            "Aggressive": 30
+          }
+        }
       ]
     },
     {
@@ -88,9 +236,24 @@
       "description": "Lets Edge throttle background tabs and reduce CPU and memory work when tabs are not visible.",
       "impact": "Lower background CPU and memory churn. Background animations may run slower.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EfficiencyModeEnabled", "kind": "DWord", "value": 1 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "EfficiencyModeEnabled",
+          "kind": "DWord",
+          "value": 1
+        }
+      ]
     },
     {
       "id": "edge.sidebar",
@@ -99,25 +262,58 @@
       "description": "Removes the Edge sidebar and the standalone sidebar, each of which hosts extra web views (Copilot, Shopping, Tools).",
       "impact": "Removes several hidden renderer processes. The sidebar button disappears from Edge.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "HubsSidebarEnabled", "kind": "DWord", "value": 0 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "StandaloneHubsSidebarEnabled", "kind": "DWord", "value": 0 }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "HubsSidebarEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "StandaloneHubsSidebarEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
       ]
     },
     {
       "id": "edge.copilot",
       "category": "Browser",
-      "title": "Turn off Copilot in Edge",
+      "title": "Turn off Copilot in Edge (Windows 11)",
       "description": "Disables the built-in Copilot integration and its page-context reader in Edge.",
       "impact": "Removes the Copilot web view and its background work. Use copilot.microsoft.com in a tab if needed.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeCopilotEnabled", "kind": "DWord", "value": 0 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiscoverPageContextEnabled", "kind": "DWord", "value": 0 }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "EdgeCopilotEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "DiscoverPageContextEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
       ]
     },
     {
@@ -127,9 +323,23 @@
       "description": "Disables speculative pre-connecting and pre-rendering of links Edge thinks you might click next.",
       "impact": "Fewer hidden renderer processes and less network use. Some links open a fraction of a second slower.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "NetworkPredictionOptions", "kind": "DWord", "value": 2 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "NetworkPredictionOptions",
+          "kind": "DWord",
+          "value": 2
+        }
+      ]
     },
     {
       "id": "edge.extras",
@@ -138,12 +348,34 @@
       "description": "Disables the shopping assistant, in-browser recommendations and the Math Solver feature.",
       "impact": "Less background scripting on every page you visit.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeShoppingAssistantEnabled", "kind": "DWord", "value": 0 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowRecommendationsEnabled", "kind": "DWord", "value": 0 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "MathSolverEnabled", "kind": "DWord", "value": 0 }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "EdgeShoppingAssistantEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "ShowRecommendationsEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "MathSolverEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
       ]
     },
     {
@@ -153,48 +385,117 @@
       "description": "Limits how large Edge's on-disk cache can grow.",
       "impact": "Less disk churn, especially on mechanical drives. Rarely visited sites may re-download assets.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiskCacheSize", "kind": "DWord", "value": 268435456 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "DiskCacheSize",
+          "kind": "DWord",
+          "value": 268435456
+        }
+      ]
     },
     {
       "id": "chrome.backgroundMode",
       "category": "Browser",
-      "title": "Stop Chrome and Brave running in the background",
-      "description": "Makes Google Chrome and Brave fully exit when their last window is closed.",
-      "impact": "Frees all browser memory when closed. Has no effect if neither browser is installed.",
+      "title": "Stop Chrome & Chromium running in the background",
+      "description": "Makes Google Chrome, Brave and Chromium browsers fully exit when their last window is closed.",
+      "impact": "Frees all browser memory when closed. Works across all Windows versions.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win7",
+        "Win8",
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BackgroundModeEnabled", "kind": "DWord", "value": 0 }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome",
+          "name": "BackgroundModeEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\BraveSoftware\\Brave",
+          "name": "BackgroundModeEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
       ]
     },
     {
       "id": "win.widgets",
       "category": "Windows",
-      "title": "Turn off Windows Widgets",
-      "description": "Disables the Widgets board (news, weather, stocks), which runs its own web view host in the background.",
+      "title": "Turn off Windows Widgets (Windows 11)",
+      "description": "Disables the Windows 11 Widgets board (news, weather, stocks), which runs its own web view host in the background.",
       "impact": "Typically saves 100-250 MB. The Widgets button disappears from the taskbar.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "kind": "DWord", "value": 0 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh",
+          "name": "AllowNewsAndInterests",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
     },
     {
       "id": "win.webSearch",
       "category": "Windows",
-      "title": "Remove Bing web results from Start search",
+      "title": "Remove Bing web results from Start search (Windows 10 / 11)",
       "description": "Start menu search shows only local apps, files and settings instead of also querying Bing.",
       "impact": "Faster, lighter Start search with no network round-trip. Web results no longer appear in Start.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
       "entries": [
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "DisableWebSearch", "kind": "DWord", "value": 1 },
-        { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "ConnectedSearchUseWeb", "kind": "DWord", "value": 0 },
-        { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableSearchBoxSuggestions", "kind": "DWord", "value": 1 }
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+          "name": "DisableWebSearch",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+          "name": "ConnectedSearchUseWeb",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\Explorer",
+          "name": "DisableSearchBoxSuggestions",
+          "kind": "DWord",
+          "value": 1
+        }
       ]
     },
     {
@@ -204,9 +505,23 @@
       "description": "Disables Xbox Game Bar background capture, which can keep recording buffers in memory.",
       "impact": "Saves memory and GPU work. Game Bar clip recording stops working.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR", "name": "AllowGameDVR", "kind": "DWord", "value": 0 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR",
+          "name": "AllowGameDVR",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
     },
     {
       "id": "win.backgroundApps",
@@ -215,9 +530,22 @@
       "description": "Prevents Microsoft Store (UWP) apps from running background tasks when they are not open.",
       "impact": "Noticeable savings on low-RAM systems. Store apps such as Mail or Phone Link only update or notify while open.",
       "risk": "Moderate",
-      "profiles": ["Aggressive"],
+      "profiles": [
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppPrivacy", "name": "LetAppsRunInBackground", "kind": "DWord", "value": 2 } ]
+      "entries": [
+        {
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppPrivacy",
+          "name": "LetAppsRunInBackground",
+          "kind": "DWord",
+          "value": 2
+        }
+      ]
     },
     {
       "id": "win.transparency",
@@ -226,18 +554,185 @@
       "description": "Disables the blur and transparency effects on the taskbar, Start menu and windows for the current user.",
       "impact": "Slightly less GPU and compositor memory. Windows looks flatter.",
       "risk": "Safe",
-      "profiles": ["Aggressive"],
+      "profiles": [
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "registry",
-      "entries": [ { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "EnableTransparency", "kind": "DWord", "value": 0 } ]
+      "entries": [
+        {
+          "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+          "name": "EnableTransparency",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "legacy.superfetch",
+      "category": "Memory",
+      "title": "Tune SuperFetch to Boot-Only (Windows 7 / 8.1)",
+      "description": "Experimental, opt-in boot-only prefetch configuration for a confirmed HDD. Requires restart. May slow application launches.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "registry",
+      "entries": [
+        {
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnableSuperfetch",
+          "kind": "DWord",
+          "value": 2
+        }
+      ],
+      "condition": "hddOnly"
+    },
+    {
+      "id": "legacy.prefetcher",
+      "category": "Memory",
+      "title": "Tune Windows Prefetcher to Boot-Only (Windows 7 / 8.1)",
+      "description": "Experimental, opt-in boot-only prefetch configuration for a confirmed HDD. Requires restart. May slow application launches.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "registry",
+      "entries": [
+        {
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnablePrefetcher",
+          "kind": "DWord",
+          "value": 2
+        }
+      ],
+      "condition": "hddOnly"
+    },
+    {
+      "id": "legacy.lastAccess",
+      "category": "Storage",
+      "title": "Disable NTFS Last Access Time Updates (Windows 7 / 8.1)",
+      "description": "Disables NTFS last-access timestamp updates. May already be disabled. Can affect tools relying on these timestamps; restart may be required.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Moderate",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "registry",
+      "entries": [
+        {
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+          "name": "NtfsDisableLastAccessUpdate",
+          "kind": "DWord",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "legacy.aeroGlass",
+      "category": "Windows",
+      "title": "Disable Aero Peek and persistent thumbnail caching (Windows 7)",
+      "description": "Changes Peek and thumbnail cache preferences. Does not disable Aero Glass composition or window animations.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Safe",
+      "profiles": [
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win7"
+      ],
+      "type": "registry",
+      "entries": [
+        {
+          "path": "HKCU:\\Software\\Microsoft\\Windows\\DWM",
+          "name": "EnableAeroPeek",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "path": "HKCU:\\Software\\Microsoft\\Windows\\DWM",
+          "name": "AlwaysHibernateThumbnails",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "legacy.appExperience",
+      "category": "Services",
+      "title": "Set Application Experience (AeLookupSvc) to Manual (Windows 7 / 8.1)",
+      "description": "Sets the service startup type to Manual. Does not stop a running service or prevent demand starts. May affect compatibility assistance.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "service",
+      "service": "AeLookupSvc",
+      "startupType": "Manual"
+    },
+    {
+      "id": "legacy.pcaSvc",
+      "category": "Services",
+      "title": "Set Program Compatibility Assistant (PcaSvc) to Manual (Windows 7 / 8.1)",
+      "description": "Sets the service startup type to Manual. Does not stop a running service or prevent demand starts. May affect compatibility assistance.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "service",
+      "service": "PcaSvc",
+      "startupType": "Manual"
+    },
+    {
+      "id": "legacy.werSvc",
+      "category": "Services",
+      "title": "Disable Windows Error Reporting (WerSvc) on Legacy Systems",
+      "description": "Disables Windows Error Reporting and reduces available crash diagnostics. Opt-in only.",
+      "impact": "Legacy compatibility and performance require validation on the target OS. No quantified savings are established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8"
+      ],
+      "type": "service",
+      "service": "WerSvc",
+      "startupType": "Disabled"
     },
     {
       "id": "svc.diagTrack",
       "category": "Services",
-      "title": "Disable Connected User Experiences and Telemetry",
-      "description": "Turns off the DiagTrack service, which collects and uploads diagnostic data in the background.",
+      "title": "Disable Connected User Experiences & Telemetry (CEIP / DiagTrack)",
+      "description": "Turns off diagnostic telemetry data collection in the background across Windows 7, 8.1, 10, and 11.",
       "impact": "Less background CPU, disk and network activity. Windows Update and Defender are not affected.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win7",
+        "Win8",
+        "Win10",
+        "Win11"
+      ],
       "type": "service",
       "service": "DiagTrack",
       "startupType": "Disabled"
@@ -249,7 +744,14 @@
       "description": "The offline maps service only starts when the Maps app needs it.",
       "impact": "Small saving. No visible change unless you use offline maps, which still work on demand.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "service",
       "service": "MapsBroker",
       "startupType": "Manual"
@@ -261,7 +763,13 @@
       "description": "Turns off dmwappushservice, a telemetry and device-management message router that home users rarely need.",
       "impact": "Small saving. Do not apply on work PCs managed by an MDM such as Intune.",
       "risk": "Moderate",
-      "profiles": ["Aggressive"],
+      "profiles": [
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "service",
       "service": "dmwappushservice",
       "startupType": "Disabled"
@@ -273,7 +781,13 @@
       "description": "Turns off CDPSvc, which powers Nearby Sharing, Phone Link and cross-device app resume.",
       "impact": "Saves memory and background network chatter. Nearby Sharing and Phone Link stop working.",
       "risk": "Moderate",
-      "profiles": ["Aggressive"],
+      "profiles": [
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "service",
       "service": "CDPSvc",
       "startupType": "Disabled"
@@ -286,6 +800,12 @@
       "impact": "Big win on mechanical drives: no background indexing I/O. Start, Outlook and Settings search become slower and less complete.",
       "risk": "Advanced",
       "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8",
+        "Win10",
+        "Win11"
+      ],
       "type": "service",
       "service": "WSearch",
       "startupType": "Disabled"
@@ -293,11 +813,19 @@
     {
       "id": "mem.compression",
       "category": "Memory",
-      "title": "Enable memory compression",
+      "title": "Enable memory compression (Windows 10 / 11)",
       "description": "Windows compresses rarely used memory pages in RAM instead of writing them to the page file on disk.",
-      "impact": "More effective RAM and fewer slow disk reads. This is the Windows default; WinBreathe makes sure it was not turned off.",
+      "impact": "More effective RAM and fewer slow disk reads. This is the Windows 10/11 default; WinBreathe makes sure it was not turned off.",
       "risk": "Safe",
-      "profiles": ["Conservative", "Balanced", "Aggressive"],
+      "profiles": [
+        "Conservative",
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "mmagent",
       "feature": "MemoryCompression",
       "enabled": true
@@ -305,11 +833,18 @@
     {
       "id": "mem.pageCombining",
       "category": "Memory",
-      "title": "Enable memory page combining",
+      "title": "Enable memory page combining (Windows 10 / 11)",
       "description": "Windows merges identical memory pages from different processes into a single shared copy.",
       "impact": "Small RAM saving at negligible CPU cost.",
       "risk": "Safe",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "type": "mmagent",
       "feature": "PageCombining",
       "enabled": true
@@ -317,11 +852,18 @@
     {
       "id": "mem.preLaunch",
       "category": "Memory",
-      "title": "Stop app pre-launch on mechanical drives",
+      "title": "Stop app pre-launch on mechanical drives (Windows 10 / 11)",
       "description": "Disables Application Pre-Launch, which speculatively loads Store apps into memory at boot. Only offered on HDD systems.",
       "impact": "Quieter, faster boot on HDDs. Some Store apps open slightly slower the first time.",
       "risk": "Moderate",
-      "profiles": ["Balanced", "Aggressive"],
+      "profiles": [
+        "Balanced",
+        "Aggressive"
+      ],
+      "supportedOS": [
+        "Win10",
+        "Win11"
+      ],
       "condition": "hddOnly",
       "type": "mmagent",
       "feature": "ApplicationPreLaunch",
@@ -330,11 +872,17 @@
     {
       "id": "mem.pagefile",
       "category": "Memory",
-      "title": "Use a fixed-size page file",
-      "description": "Replaces the auto-growing page file with a fixed size (1.5 x RAM, 4-12 GB) so it never fragments on a hard drive. Skipped if free disk space would drop below 15 GB.",
-      "impact": "Prevents stutters caused by page-file growth on HDDs and low-RAM PCs. Takes effect after a reboot.",
-      "risk": "Moderate",
-      "profiles": ["Balanced", "Aggressive"],
+      "title": "Configure a fixed-size pagefile (opt-in; restart required)",
+      "description": "Advanced manual override: 1.5 x RAM, capped at 12 GB. Check peak commit and crash-dump needs first. Replaces configured paging paths; does not guarantee contiguous allocation.",
+      "impact": "May reduce growth operations but can reduce commit headroom. No universal performance benefit is established.",
+      "risk": "Advanced",
+      "profiles": [],
+      "supportedOS": [
+        "Win7",
+        "Win8",
+        "Win10",
+        "Win11"
+      ],
       "condition": "lowRamOrHdd",
       "type": "pagefile"
     }

@@ -1,3 +1,5 @@
+> Historical documentation: defaults and compatibility claims below may predate v2.1.0. Use [current release notes](RELEASE-2.1.0.md) and the current catalog for supported behavior. Legacy performance remains unverified.
+
 # Repository Structure Comparison with Top-Starred GitHub Windows Utilities
 
 To ensure **WinBreathe** follows the gold-standard repository layout of the highest-starred Windows optimization projects on GitHub—specifically [**`ChrisTitusTech/winutil`**](https://github.com/ChrisTitusTech/winutil) (~30,000+ ★) and [**`hellzerg/optimizer`**](https://github.com/hellzerg/optimizer) (~16,000+ ★)—while keeping WinBreathe's unique hardware-adaptive RAM/HDD & AI-stack engineering, the repository implements the exact structural conventions below:

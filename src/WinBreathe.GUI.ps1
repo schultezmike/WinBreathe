@@ -1,5 +1,6 @@
+#Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.0.0)
+# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.1.0)
 # Features:
 #   - Custom GDI+ Circular RAM Gauge + Live 60-Point Memory History Chart
 #   - Per-Tweak Interactive Checklist with Profile Selector & Preview (-WhatIf)
@@ -76,7 +77,7 @@ $script:LastSnap = Get-WBMemorySnapshot
 # Main Form Setup
 # ------------------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "WinBreathe v2.0 - Windows 11 Memory & Latency Optimizer"
+$form.Text = "WinBreathe v2.1 - Universal Windows Memory & Latency Optimizer"
 $form.Size = New-Object System.Drawing.Size(1020, 720)
 $form.MinimumSize = New-Object System.Drawing.Size(960, 680)
 $form.StartPosition = "CenterScreen"
@@ -97,7 +98,7 @@ if (Test-Path $icoPath) {
 # ------------------------------------------------------------------------------
 $headerPanel = New-Object System.Windows.Forms.Panel
 $headerPanel.Dock = "Top"
-$headerPanel.Height = 74
+$headerPanel.Height = 94
 $headerPanel.BackColor = $cMantle
 $form.Controls.Add($headerPanel)
 
@@ -115,7 +116,7 @@ if (Test-Path $logoPath) {
 $headerPanel.Controls.Add($logoBox)
 
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "WinBreathe v2.0"
+$lblTitle.Text = "WinBreathe v2.1"
 $lblTitle.Font = $fTitle
 $lblTitle.ForeColor = $cBlue
 $lblTitle.Location = New-Object System.Drawing.Point(78, 10)
@@ -124,11 +125,14 @@ $headerPanel.Controls.Add($lblTitle)
 
 $adminTag = if ($isAdmin) { "ADMIN" } else { "READ-ONLY (Run WinBreathe.bat as Admin to apply)" }
 $lblSub = New-Object System.Windows.Forms.Label
-$lblSub.Text = "$($sysProfile.TotalRAMMB) MB RAM  |  $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)  |  Build $($sysProfile.OSBuild)  |  $adminTag"
+$lblSub.Text = "OS: $($sysProfile.OSCaption) [$($sysProfile.OSFamily)]  |  $($sysProfile.TotalRAMMB) MB RAM  |  $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)  |  $adminTag"
 $lblSub.Font = $fSmall
 $lblSub.ForeColor = if ($isAdmin) { $cTeal } else { $cYellow }
-$lblSub.Location = New-Object System.Drawing.Point(80, 42)
-$lblSub.AutoSize = $true
+$lblSub.Location = New-Object System.Drawing.Point(80, 62)
+$lblSub.Size = New-Object System.Drawing.Size(904, 24)
+$lblSub.Anchor = "Top,Left,Right"
+$lblSub.AutoSize = $false
+$lblSub.AutoEllipsis = $true
 $headerPanel.Controls.Add($lblSub)
 
 function New-WBButton {
@@ -155,7 +159,7 @@ function New-WBButton {
     return $btn
 }
 
-$btnQuickOpt   = New-WBButton -Text "1-Click Optimize" -X 540 -Y 18 -W 148 -H 38 -BgColor $cBlue     -FgColor $cCrust
+$btnQuickOpt   = New-WBButton -Text "Click Optimization" -X 540 -Y 18 -W 148 -H 38 -BgColor $cBlue     -FgColor $cCrust
 $btnQuickFlush = New-WBButton -Text "Safe RAM Flush"   -X 698 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cTeal
 $btnQuickRep   = New-WBButton -Text "Export Report"    -X 846 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cText
 $headerPanel.Controls.AddRange(@($btnQuickOpt, $btnQuickFlush, $btnQuickRep))
@@ -164,8 +168,8 @@ $headerPanel.Controls.AddRange(@($btnQuickOpt, $btnQuickFlush, $btnQuickRep))
 # Custom Dark Owner-Drawn TabControl (6 Tabs)
 # ------------------------------------------------------------------------------
 $tabs = New-Object System.Windows.Forms.TabControl
-$tabs.Location = New-Object System.Drawing.Point(12, 82)
-$tabs.Size = New-Object System.Drawing.Size(982, 588)
+$tabs.Location = New-Object System.Drawing.Point(12, 102)
+$tabs.Size = New-Object System.Drawing.Size(982, 568)
 $tabs.Anchor = "Top,Bottom,Left,Right"
 $tabs.Font = $fBold
 $tabs.ItemSize = New-Object System.Drawing.Size(156, 34)
@@ -415,13 +419,13 @@ $tabOpt.Controls.Add($optTopBar)
 $lblProf = New-Object System.Windows.Forms.Label
 $lblProf.Text = "Profile:"
 $lblProf.Font = $fBold
-$lblProf.Location = New-Object System.Drawing.Point(12, 14)
+$lblProf.Location = New-Object System.Drawing.Point(10, 14)
 $lblProf.AutoSize = $true
 $optTopBar.Controls.Add($lblProf)
 
 $cmbProfile = New-Object System.Windows.Forms.ComboBox
-$cmbProfile.Location = New-Object System.Drawing.Point(76, 10)
-$cmbProfile.Size = New-Object System.Drawing.Size(155, 28)
+$cmbProfile.Location = New-Object System.Drawing.Point(62, 10)
+$cmbProfile.Size = New-Object System.Drawing.Size(120, 28)
 $cmbProfile.DropDownStyle = "DropDownList"
 $cmbProfile.BackColor = $cSurface0
 $cmbProfile.ForeColor = $cText
@@ -430,8 +434,32 @@ $cmbProfile.Font = $fBold
 $cmbProfile.SelectedItem = $sysProfile.RecommendedProfile
 $optTopBar.Controls.Add($cmbProfile)
 
-$btnPreviewSel = New-WBButton -Text "Preview Selected (-WhatIf)" -X 490 -Y 7 -W 215 -H 34 -BgColor $cSurface0 -FgColor $cMauve
-$btnApplySel   = New-WBButton -Text "Apply Selected Tweaks"      -X 715 -Y 7 -W 215 -H 34 -BgColor $cGreen    -FgColor $cCrust
+$lblOS = New-Object System.Windows.Forms.Label
+$lblOS.Text = "OS View:"
+$lblOS.Font = $fBold
+$lblOS.Location = New-Object System.Drawing.Point(192, 14)
+$lblOS.AutoSize = $true
+$optTopBar.Controls.Add($lblOS)
+
+$cmbOS = New-Object System.Windows.Forms.ComboBox
+$cmbOS.Location = New-Object System.Drawing.Point(254, 10)
+$cmbOS.Size = New-Object System.Drawing.Size(195, 28)
+$cmbOS.DropDownStyle = "DropDownList"
+$cmbOS.BackColor = $cSurface0
+$cmbOS.ForeColor = $cTeal
+$cmbOS.Font = $fBold
+[void]$cmbOS.Items.AddRange(@(
+    "Detected ($($sysProfile.OSFamily))",
+    "Windows 11",
+    "Windows 10",
+    "Windows 8.1",
+    "Windows 7"
+))
+$cmbOS.SelectedIndex = 0
+$optTopBar.Controls.Add($cmbOS)
+
+$btnPreviewSel = New-WBButton -Text "Preview Selected (-WhatIf)" -X 465 -Y 7 -W 230 -H 34 -BgColor $cSurface0 -FgColor $cMauve
+$btnApplySel   = New-WBButton -Text "Apply Selected Tweaks"      -X 705 -Y 7 -W 230 -H 34 -BgColor $cGreen    -FgColor $cCrust
 $optTopBar.Controls.AddRange(@($btnPreviewSel, $btnApplySel))
 
 $gridTweaks = New-Object System.Windows.Forms.DataGridView
@@ -490,11 +518,21 @@ $lblTweakDetail.Padding = New-Object System.Windows.Forms.Padding(12, 8, 12, 8)
 $lblTweakDetail.Text = "Select any tweak above to inspect its exact registry/service target, memory impact, and safety notes."
 $tabOpt.Controls.Add($lblTweakDetail)
 
+function Get-SelectedTargetOS {
+    $sel = [string]$cmbOS.SelectedItem
+    if ($sel -match "Windows 7")  { return "Win7" }
+    if ($sel -match "Windows 8")  { return "Win8" }
+    if ($sel -match "Windows 10") { return "Win10" }
+    if ($sel -match "Windows 11") { return "Win11" }
+    return ""
+}
+
 $script:TweakStateCache = @()
 function Refresh-TweaksGrid {
     $prof = [string]$cmbProfile.SelectedItem
     if ([string]::IsNullOrEmpty($prof)) { $prof = "Balanced" }
-    $script:TweakStateCache = Test-WBTweakState -ProfileName $prof
+    $targetOS = Get-SelectedTargetOS
+    $script:TweakStateCache = Test-WBTweakState -ProfileName $prof -TargetOS $targetOS
     $gridTweaks.Rows.Clear()
 
     foreach ($t in $script:TweakStateCache) {
@@ -509,12 +547,14 @@ function Refresh-TweaksGrid {
         $row.Cells["State"].Style.ForeColor = switch ($t.State) {
             "Applied"       { $cGreen }
             "NotApplicable" { $cSubtext }
+            "Unknown"       { $cPeach }
             default         { $cYellow }
         }
     }
 }
 
 $cmbProfile.Add_SelectedIndexChanged({ Refresh-TweaksGrid })
+$cmbOS.Add_SelectedIndexChanged({ Refresh-TweaksGrid })
 $gridTweaks.Add_SelectionChanged({
     if ($gridTweaks.SelectedRows.Count -gt 0) {
         $id = $gridTweaks.SelectedRows[0].Cells["Id"].Value
@@ -793,31 +833,39 @@ $helpBox.Font = $fBody
 $helpBox.ReadOnly = $true
 $helpBox.BorderStyle = "None"
 $helpBox.Text = @"
-WINBREATHE v2.0 - QUICK REFERENCE & SAFETY ARCHITECTURE
+WINBREATHE v2.1 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 · 8.1 · 10 · 11)
 
-1. HARDWARE-ADAPTIVE PROFILES
+1. AUTOMATIC OS & HARDWARE DETECTION
+   - WinBreathe inspects your exact Windows build and storage type at launch and tailors tweaks:
+     * Windows 7  : SuperFetch & Prefetcher boot-only (fixes 100% HDD thrashing), DWM Aero glass RAM trimming, NTFS Last-Access write churn disabled, Application Experience & WER stopped, contiguous pagefile locked.
+     * Windows 8.1: SuperFetch & Prefetcher boot-only, NTFS Last-Access churn disabled, Program Compatibility Assistant stopped, contiguous pagefile locked.
+     * Windows 10 : In-RAM Memory Compression + Page Combining enabled, DiagTrack silenced, contiguous pagefile locked, browser background bloat cut.
+     * Windows 11 : Everything in Win10 + Windows Copilot disabled, Windows 11 Widgets board WebView2 background daemon stopped, modern telemetry silenced.
+
+2. HARDWARE-ADAPTIVE PROFILES
    - Conservative : Zero-impact browser background cuts and memory compression check. Ideal for 16 GB+ SSD PCs.
-   - Balanced     : Recommended for 8-12 GB RAM laptops and HDDs. Locks Edge/Chrome background bloat, disables Widgets/Telemetry, enables Memory Compression + Page Combining, and locks a contiguous pagefile.
+   - Balanced     : Recommended for 8-12 GB RAM laptops and HDDs. Locks Edge/Chrome background bloat, disables Widgets/Telemetry, enables Memory Compression + Page Combining (Win10/11), and locks a contiguous pagefile.
    - Aggressive   : For 4-6 GB RAM or heavy disk load. Adds Store background app restrictions and disables transparency effects.
 
-2. TRUE SNAPSHOT UNDO vs. STOCK WINDOWS RESET
+3. TRUE SNAPSHOT UNDO vs. STOCK WINDOWS RESET
    - Before WinBreathe applies changes, it captures your exact current registry values, service startup types, MMAgent flags, and pagefile settings to:
      %ProgramData%\WinBreathe\backups\latest.json
    - Clicking 'Undo (Restore Backup)' restores your exact prior state (including removing policy keys that did not exist before).
-   - Clicking 'Reset Stock Defaults' resets all settings to Windows 11 factory out-of-the-box defaults.
+   - Clicking 'Reset Stock Defaults' resets all settings to Windows factory out-of-the-box defaults.
 
-3. TIER-1 PROTECTED PROCESSES (NEVER TOUCHED)
+4. TIER-1 PROTECTED PROCESSES (NEVER TOUCHED)
    - WinBreathe never calls EmptyWorkingSet() (which forces active memory onto slow disks) and never terminates:
      * Windows Kernel, Explorer, DWM, Audio, or Windows Defender (MsMpEng)
      * VPN & Network Tunnels (OpenVPN Connect, WireGuard, Tailscale)
      * AI & Developer Stacks (Antigravity, ChatGPT, Codex, Claude, VS Code, Cursor, Node.js, Python, Git)
 
-4. WINDOWS SEARCH INDEXER (WSearch) IS OPT-IN
+5. WINDOWS SEARCH INDEXER (WSearch) IS OPT-IN
    - Disabling Windows Search stops background disk indexing on mechanical HDDs, but also disables instant file search in Start and Outlook.
    - Therefore, 'svc.wsearch' is unchecked by default in all profiles. Only check it in the 'Optimize Tweaks' tab if you use an alternative file searcher such as Voidtools Everything.
 
-5. COMMAND-LINE AUTOMATION (src\WinBreathe.ps1)
+6. COMMAND-LINE AUTOMATION (src\WinBreathe.ps1)
    - Preview only (Dry-Run) : .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
+   - Target another OS mode : .\src\WinBreathe.ps1 -PreviewOS Win7
    - Apply Balanced Profile : .\src\WinBreathe.ps1 -Profile Balanced
    - Live Drift Status      : .\src\WinBreathe.ps1 -Status
    - Undo from Snapshot     : .\src\WinBreathe.ps1 -Undo
@@ -929,8 +977,10 @@ $btnPreviewSel.Add_Click({
         Write-GuiConsole "[WARN] No tweaks are checked in the Optimize Tweaks tab." "#f9e2af"
         return
     }
+    $targetOS = Get-SelectedTargetOS
+    $osArg = if (-not [string]::IsNullOrEmpty($targetOS)) { "-TargetOS $targetOS" } else { "" }
     $idArg = ($ids | ForEach-Object { "'$_'" }) -join ","
-    Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg) -WhatIf" -BannerText "Previewing $($ids.Count) Selected Tweaks (-WhatIf Dry-Run)..."
+    Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg) $osArg -WhatIf" -BannerText "Previewing $($ids.Count) Selected Tweaks (-WhatIf Dry-Run for $($cmbOS.SelectedItem))..."
 })
 
 $btnApplySel.Add_Click({
@@ -940,8 +990,9 @@ $btnApplySel.Add_Click({
         Write-GuiConsole "[WARN] No tweaks are checked in the Optimize Tweaks tab." "#f9e2af"
         return
     }
+    # Safety: Live apply strictly targets the host machine. Never pass simulated OS into live execution.
     $idArg = ($ids | ForEach-Object { "'$_'" }) -join ","
-    Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg)" -BannerText "Applying $($ids.Count) Selected Tweaks ($prof Profile)..."
+    Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg)" -BannerText "Applying $($ids.Count) Selected Tweaks to host system ($prof Profile)..."
 })
 
 $btnQuickFlush.Add_Click({
@@ -1023,7 +1074,7 @@ Refresh-StartupGrid
 Refresh-StatusTab
 Update-DashboardMetrics
 
-Write-GuiConsole "WinBreathe v2.0.0 initialized." "#89b4fa"
+Write-GuiConsole "WinBreathe v2.1.0 initialized." "#89b4fa"
 Write-GuiConsole "Detected: $($sysProfile.OSCaption) | $($sysProfile.TotalRAMMB) MB RAM | $($sysProfile.DiskModel) ($($sysProfile.DiskMediaType))" "#94e2d5"
 Write-GuiConsole "Recommended Profile: $($sysProfile.RecommendedProfile) | Tier-1 Protected Processes Active." "#a6e3a1"
 Write-GuiConsole "Tip: Use 'Optimize Tweaks' -> 'Preview Selected (-WhatIf)' to inspect changes before applying." "#cdd6f4"

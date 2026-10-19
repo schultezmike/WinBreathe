@@ -2,7 +2,7 @@
 # Compile.ps1 - WinBreathe Build, Bundler & Native .EXE Compiler Pipeline
 # Structure modeled after ChrisTitusTech/winutil & hellzerg/optimizer
 # Compiles standalone self-contained x64 Windows executables (.exe) with custom
-# icon, UAC Administrator manifest, and embedded resources for v1.1.0 & v2.0.0
+# icon, UAC Administrator manifest, and embedded resources for v1.1.0 & v2.1.0
 # ==============================================================================
 
 param(
@@ -45,7 +45,7 @@ $manifestFile = Join-Path $repoRoot "src\Launcher\app.manifest"
 $csSource     = Join-Path $repoRoot "src\Launcher\Program.cs"
 
 $relV1Dir = Join-Path $repoRoot "releases\v1.1.0"
-$relV2Dir = Join-Path $repoRoot "releases\v2.0.0"
+$relV2Dir = Join-Path $repoRoot "releases\v2.1.0"
 New-Item -ItemType Directory -Path $relV1Dir, $relV2Dir -Force | Out-Null
 
 # ------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ $v1Gui    = Join-Path $repoRoot "src\v1\WinBreatheGUI.ps1"
 $v1Bat    = Join-Path $repoRoot "src\v1\OPTIMIZE_SYSTEM_ADMIN.bat"
 $v1ExeOut = Join-Path $relV1Dir "WinBreathe-v1.1.0-x64.exe"
 
-if ((Test-Path $v1Engine) -and (Test-Path $v1Gui)) {
+if ($false) { # Historical releases are immutable; build only the current release.
     Write-Host "[BUILD] Compiling WinBreathe-v1.1.0-x64.exe..." -ForegroundColor Yellow
     $v1Args = @(
         "/nologo",
@@ -85,8 +85,14 @@ if ((Test-Path $v1Engine) -and (Test-Path $v1Gui)) {
     Copy-Item (Join-Path $repoRoot "LICENSE") (Join-Path $v1Stage "LICENSE") -Force
 
     $v1Zip = Join-Path $relV1Dir "WinBreathe-v1.1.0-Portable.zip"
-    if (Test-Path $v1Zip) { Remove-Item $v1Zip -Force }
-    Compress-Archive -Path "$v1Stage\*" -DestinationPath $v1Zip -Force
+    if (Test-Path $v1Zip) {
+        [System.GC]::Collect()
+        [System.GC]::WaitForPendingFinalizers()
+        Remove-Item $v1Zip -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 150
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($v1Stage, $v1Zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
     Remove-Item $v1Stage -Recurse -Force
 
     # Generate SHA256SUMS.txt for v1.1.0
@@ -99,16 +105,16 @@ if ((Test-Path $v1Engine) -and (Test-Path $v1Gui)) {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Compile Version 2.0.0 Standalone Executable & Root WinBreathe.exe
+# 3. Compile Version 2.1.0 Standalone Executable & Root WinBreathe.exe
 # ------------------------------------------------------------------------------
 $v2Engine = Join-Path $repoRoot "src\WinBreathe.Engine.psm1"
 $v2Cli    = Join-Path $repoRoot "src\WinBreathe.ps1"
 $v2Gui    = Join-Path $repoRoot "src\WinBreathe.GUI.ps1"
 $v2Cfg    = Join-Path $repoRoot "config\tweaks.json"
-$v2ExeOut = Join-Path $relV2Dir "WinBreathe-v2.0.0-x64.exe"
+$v2ExeOut = Join-Path $relV2Dir "WinBreathe-v2.1.0-x64.exe"
 $rootExe  = Join-Path $repoRoot "WinBreathe.exe"
 
-Write-Host "[BUILD] Compiling WinBreathe-v2.0.0-x64.exe & Root WinBreathe.exe..." -ForegroundColor Yellow
+Write-Host "[BUILD] Compiling WinBreathe-v2.1.0-x64.exe & Root WinBreathe.exe..." -ForegroundColor Yellow
 $v2Args = @(
     "/nologo",
     "/target:winexe",
@@ -126,13 +132,13 @@ $v2Args = @(
     "`"$csSource`""
 )
 & $cscPath @v2Args
-if ($LASTEXITCODE -ne 0) { throw "v2.0.0 compilation failed." }
+if ($LASTEXITCODE -ne 0) { throw "v2.1.0 compilation failed." }
 
-Copy-Item $v2ExeOut $rootExe -Force
+try { Copy-Item $v2ExeOut $rootExe -Force -ErrorAction Stop }
+catch { Write-Warning "Root executable was not updated (it may be running). Use the versioned release executable. $($_.Exception.Message)" }
 
-# Create v2.0.0 Portable ZIP
-$v2Stage = Join-Path $env:TEMP "WinBreathe_v2_stage"
-if (Test-Path $v2Stage) { Remove-Item $v2Stage -Recurse -Force }
+# Create v2.1.0 Portable ZIP
+$v2Stage = Join-Path $env:TEMP ("WinBreathe_stage_" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path "$v2Stage\src", "$v2Stage\config", "$v2Stage\assets", "$v2Stage\docs" -Force | Out-Null
 Copy-Item $v2ExeOut "$v2Stage\WinBreathe.exe" -Force
 Copy-Item (Join-Path $repoRoot "WinBreathe.bat") "$v2Stage\WinBreathe.bat" -Force
@@ -144,16 +150,36 @@ Copy-Item "$repoRoot\assets\*" "$v2Stage\assets\" -Force
 Copy-Item "$repoRoot\docs\*"   "$v2Stage\docs\" -Force
 Copy-Item "$repoRoot\README.md", "$repoRoot\LICENSE", "$repoRoot\CHANGELOG.md" $v2Stage -Force
 
-$v2Zip = Join-Path $relV2Dir "WinBreathe-v2.0.0-Portable.zip"
-if (Test-Path $v2Zip) { Remove-Item $v2Zip -Force }
-Compress-Archive -Path "$v2Stage\*" -DestinationPath $v2Zip -Force
+# Bind the package to the source inputs used in this invocation.
+$sourcePaths = @('src/WinBreathe.Engine.psm1', 'src/WinBreathe.ps1', 'src/WinBreathe.GUI.ps1', 'src/Launcher/Program.cs', 'src/Launcher/app.manifest', 'config/tweaks.json', 'Compile.ps1', 'tests/Compatibility.Tests.ps1', 'tests/Report.Tests.ps1')
+$sourceManifest = [ordered]@{
+    Version = '2.1.0-preview'
+    BuiltAtUTC = [DateTime]::UtcNow.ToString('o')
+    Sources = @($sourcePaths | ForEach-Object {
+        [ordered]@{ Path = $_; SHA256 = (Get-FileHash (Join-Path $repoRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
+    })
+}
+$sourceManifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $relV2Dir 'SOURCE-MANIFEST.json') -Encoding UTF8
+Copy-Item (Join-Path $relV2Dir 'SOURCE-MANIFEST.json') $v2Stage
+New-Item -ItemType Directory -Path (Join-Path $v2Stage 'tests') -Force | Out-Null
+Copy-Item (Join-Path $repoRoot 'tests/*.ps1') (Join-Path $v2Stage 'tests')
+
+$v2Zip = Join-Path $relV2Dir "WinBreathe-v2.1.0-Portable.zip"
+if (Test-Path $v2Zip) {
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+    Remove-Item $v2Zip -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 150
+}
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory($v2Stage, $v2Zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 Remove-Item $v2Stage -Recurse -Force
 
-# Generate SHA256SUMS.txt for v2.0.0
-$v2Hashes = Get-ChildItem $relV2Dir -Include *.exe, *.zip -Recurse | ForEach-Object {
+# Generate SHA256SUMS.txt for v2.1.0
+$v2Hashes = Get-ChildItem $relV2Dir -Include *.exe, *.zip, SOURCE-MANIFEST.json -Recurse | ForEach-Object {
     $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$h  $($_.Name)"
 }
 Set-Content -Path (Join-Path $relV2Dir "SHA256SUMS.txt") -Value ($v2Hashes -join "`r`n") -Encoding UTF8 -Force
 
-Write-Host "[OK] Built v2.0.0 Release Artifacts in releases\v2.0.0\ and root WinBreathe.exe" -ForegroundColor Green
+Write-Host "[OK] Built v2.1.0 release artifacts in releases\v2.1.0\ (see warning above if the root executable was locked)." -ForegroundColor Green

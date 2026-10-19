@@ -1,5 +1,6 @@
+#Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.0.0)
+# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.1.0)
 # Usage Examples:
 #   .\src\WinBreathe.ps1 -GUI
 #   .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
@@ -14,6 +15,10 @@ param(
     [ValidateSet("Conservative", "Balanced", "Aggressive")]
     [string]$Profile = "Balanced",
     [string[]]$TweakIds = @(),
+    [ValidateSet("Win7", "Win8", "Win10", "Win11", "")]
+    [string]$TargetOS = "",
+    [ValidateSet("Win7", "Win8", "Win10", "Win11", "")]
+    [string]$PreviewOS = "",
     [switch]$WhatIf,
     [switch]$SkipSnapshot,
     [switch]$SkipFlush,
@@ -32,23 +37,35 @@ $ErrorActionPreference = "SilentlyContinue"
 $modulePath = Join-Path $PSScriptRoot "WinBreathe.Engine.psm1"
 Import-Module $modulePath -Force
 
+if ($PreviewOS) {
+    $TargetOS = $PreviewOS
+    $WhatIf = $true
+}
+
+if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf) {
+    Write-Host "[WARN] Simulation TargetOS '$TargetOS' ignored for live execution. Live optimization strictly targets the host operating system." -ForegroundColor Yellow
+    $TargetOS = ""
+}
+
 if ($Help) {
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.0.0 - Windows 11 Memory & Latency Optimizer Help" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.1 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
+    Write-Host "  OS Coverage: Windows 11 | Windows 10 | Windows 8.1 | Windows 7" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  -GUI                     Launch the 6-tab graphical dashboard"
-    Write-Host "  -Profile <Name>          Select profile: Conservative, Balanced (default), Aggressive"
-    Write-Host "  -TweakIds <id1,id2...>   Apply only specific tweak IDs from config/tweaks.json"
-    Write-Host "  -WhatIf                  Preview every change without modifying the system"
-    Write-Host "  -Status                  Check live tweak drift & hardware telemetry"
-    Write-Host "  -Flush                   Safely flush transient Search/Widget WebView2 hosts"
-    Write-Host "  -Snapshot                Save current registry/service/pagefile state to JSON"
-    Write-Host "  -Undo                    Restore exact pre-optimization state from latest snapshot"
-    Write-Host "  -ResetDefaults           Reset all tweaks back to stock Windows 11 defaults"
-    Write-Host "  -InstallGuard            Install hardened SYSTEM boot task (Update Guard)"
-    Write-Host "  -RemoveGuard             Remove the Update Guard scheduled task"
-    Write-Host "  -ExportReport            Generate HTML and Markdown telemetry/drift reports"
+    Write-Host "  -GUI                              Launch the 6-tab graphical dashboard"
+    Write-Host "  -Profile <Name>                   Select profile: Conservative, Balanced (default), Aggressive"
+    Write-Host "  -PreviewOS <Win7|Win8|Win10|Win11> View tailor-made options and status for that OS"
+    Write-Host "  -TweakIds <id1,id2...>            Apply only specific tweak IDs from config/tweaks.json"
+    Write-Host "  -WhatIf                           Preview every change without modifying the system"
+    Write-Host "  -Status                           Check live tweak drift & hardware telemetry"
+    Write-Host "  -Flush                            Safely flush transient Search/Widget WebView2 hosts"
+    Write-Host "  -Snapshot                         Save current registry/service/pagefile state to JSON"
+    Write-Host "  -Undo                             Restore exact pre-optimization state from latest snapshot"
+    Write-Host "  -ResetDefaults                    Reset all tweaks back to stock Windows defaults"
+    Write-Host "  -InstallGuard                     Install hardened SYSTEM boot task (Update Guard)"
+    Write-Host "  -RemoveGuard                      Remove the Update Guard scheduled task"
+    Write-Host "  -ExportReport                     Generate HTML and Markdown telemetry/drift reports"
     Write-Host ""
     exit 0
 }
@@ -64,7 +81,7 @@ if ($Status) {
     $guard = Get-WBUpdateGuardStatus
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.0.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.1.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  OS         : $($sys.OSCaption) (Build $($sys.OSBuild))"
     Write-Host "  RAM Usage  : $($sys.UsedRAMMB) MB / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)% Load | $($sys.AvailRAMMB) MB Free)"
@@ -72,16 +89,18 @@ if ($Status) {
     Write-Host "  Recommended: $($sys.RecommendedProfile) Profile"
     Write-Host "  Boot Guard : $($guard.State) (Last Run: $($guard.LastRunTime))"
     Write-Host "----------------------------------------------------------------------" -ForegroundColor Cyan
-    $states = Test-WBTweakState -ProfileName $Profile
+    $states = Test-WBTweakState -ProfileName $Profile -TargetOS $TargetOS
     foreach ($s in $states) {
         $tag = switch ($s.State) {
             "Applied"       { "[APPLIED] " }
             "NotApplicable" { "[N/A]     " }
+            "Unknown"       { "[UNKNOWN] " }
             default         { "[DEFAULT] " }
         }
         $col = switch ($s.State) {
             "Applied"       { "Green" }
             "NotApplicable" { "DarkGray" }
+            "Unknown"       { "DarkYellow" }
             default         { "Yellow" }
         }
         Write-Host ("  {0} {1,-24} | {2} ({3})" -f $tag, $s.Id, $s.Title, $s.CurrentValue) -ForegroundColor $col
@@ -126,4 +145,4 @@ if ($ExportReport) {
 }
 
 # Default action: Run optimization (or preview if -WhatIf)
-Invoke-WBTweaks -ProfileName $Profile -TweakIds $TweakIds -WhatIf:$WhatIf -SkipSnapshot:$SkipSnapshot -SkipFlush:$SkipFlush | Out-Null
+Invoke-WBTweaks -ProfileName $Profile -TweakIds $TweakIds -TargetOS $TargetOS -WhatIf:$WhatIf -SkipSnapshot:$SkipSnapshot -SkipFlush:$SkipFlush | Out-Null

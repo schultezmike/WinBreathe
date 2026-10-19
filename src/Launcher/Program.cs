@@ -22,8 +22,8 @@ using System.Windows.Forms;
 [assembly: AssemblyVersion("1.1.0.0")]
 [assembly: AssemblyFileVersion("1.1.0.0")]
 #else
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.1.0.0")]
+[assembly: AssemblyFileVersion("2.1.0.0")]
 #endif
 
 namespace WinBreatheHost
@@ -49,7 +49,7 @@ namespace WinBreatheHost
 #if V1_BUILD
                 string versionTag = "v1.1.0";
 #else
-                string versionTag = "v2.0.0";
+                string versionTag = "v2.1.0";
 #endif
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
                 string runtimeDir = PrepareRuntimeDirectory(exeDir, versionTag);

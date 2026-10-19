@@ -13,6 +13,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Isolated compatibility regressions
+        shell: powershell
+        run: |
+          .\tests\Compatibility.Tests.ps1
+          .\tests\Report.Tests.ps1
+
       - name: Validate PowerShell AST Syntax & Pure ASCII Encoding
         shell: powershell
         run: |

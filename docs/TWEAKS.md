@@ -1,3 +1,5 @@
+> Historical documentation: defaults and compatibility claims below may predate v2.1.0. Use [current release notes](RELEASE-2.1.0.md) and the current catalog for supported behavior. Legacy performance remains unverified.
+
 # WinBreathe v2.0 — Complete Tweak Catalog Reference
 
 All optimizations in WinBreathe are declaratively defined in [`config/tweaks.json`](../config/tweaks.json). Nothing is hidden in compiled binaries. Every tweak is captured by `New-WBSnapshot` before execution and can be reverted via `Restore-WBSnapshot` (`-Undo`) or `Restore-WBStockDefaults` (`-ResetDefaults`).

@@ -1,3 +1,5 @@
+> Historical documentation: defaults and compatibility claims below may predate v2.1.0. Use [current release notes](RELEASE-2.1.0.md) and the current catalog for supported behavior. Legacy performance remains unverified.
+
 # WinBreathe v2.0 — Frequently Asked Questions (FAQ)
 
 ### 1. Why does Microsoft Edge say *"Managed by your organization"* after optimizing?

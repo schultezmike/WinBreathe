@@ -1,0 +1,42 @@
+﻿{
+    "Version":  "2.1.0-preview",
+    "BuiltAtUTC":  "2026-10-19T15:44:36.9288654Z",
+    "Sources":  [
+                    {
+                        "Path":  "src/WinBreathe.Engine.psm1",
+                        "SHA256":  "a3b995781a2e4298ccd689658182ded74efae273c9f3e98aa74752079da7bbc4"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.ps1",
+                        "SHA256":  "870c7c79bbc760784ad48a49a97eb410b08c604a65b39be9adaa4082406c2dda"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.GUI.ps1",
+                        "SHA256":  "fd4eb614647228b619ee84c30ef2e1ad00869d507c2b2beb281c954fc8fbbf78"
+                    },
+                    {
+                        "Path":  "src/Launcher/Program.cs",
+                        "SHA256":  "28f1966db9f4d646658c4448cac392bd872633ed30927c990a7001df8a2132ed"
+                    },
+                    {
+                        "Path":  "src/Launcher/app.manifest",
+                        "SHA256":  "e783ea7fbeb22bed7ebc1c834daf428d2a1341cddb26090a93c21c077f723ae4"
+                    },
+                    {
+                        "Path":  "config/tweaks.json",
+                        "SHA256":  "d94e3a5dd480ed50e8c2b2ec631681747f8f54b6cb70feeda95681ecb07206bc"
+                    },
+                    {
+                        "Path":  "Compile.ps1",
+                        "SHA256":  "95a1dae7b1822da910db87b8aa26f7145fe664124ab979236628dbff40d226c2"
+                    },
+                    {
+                        "Path":  "tests/Compatibility.Tests.ps1",
+                        "SHA256":  "8c1002e790a24d3615597ee76f84b0f8c986b8ad49d28a64836ac722ba8ed707"
+                    },
+                    {
+                        "Path":  "tests/Report.Tests.ps1",
+                        "SHA256":  "194f676899b7894e6ace7a79f8dd576241d5d370b0d4b8cca742eeb723c2ae9d"
+                    }
+                ]
+}

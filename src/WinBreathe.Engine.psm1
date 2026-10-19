@@ -1,9 +1,10 @@
 # ==============================================================================
-# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.0.0)
+# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.1.0)
 # Designed for Windows 11 / 10 (4-16 GB RAM, Mechanical HDDs & AI Dev Stacks)
 # License: MIT | Pure PowerShell 5.1+ | Zero External Dependencies
 # ==============================================================================
 
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -158,11 +159,9 @@ function Get-WBSystemProfile {
                 }
             }
         } catch {
-            $disk = Get-PhysicalDisk -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($disk) {
-                $mediaType = [string]$disk.MediaType
-                $diskModel = [string]$disk.FriendlyName
-            }
+            # Win7 has no Storage module. WMI supplies the model; do not guess SSD/HDD.
+            $disk = Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($disk) { $diskModel = [string]$disk.Model }
         }
 
         $vol = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$sysDrive'" -ErrorAction SilentlyContinue
@@ -181,6 +180,18 @@ function Get-WBSystemProfile {
         $osCaption = if ($os) { $os.Caption } else { "Windows 11" }
         $osBuild   = if ($os) { $os.BuildNumber } else { "Unknown" }
 
+        $osVer = [System.Environment]::OSVersion.Version
+        $osFamily = "Win11"
+        if ($osCaption -match "Windows 7" -or ($osVer.Major -eq 6 -and $osVer.Minor -eq 1)) {
+            $osFamily = "Win7"
+        } elseif ($osCaption -match "Windows 8" -or ($osVer.Major -eq 6 -and ($osVer.Minor -eq 2 -or $osVer.Minor -eq 3))) {
+            $osFamily = "Win8"
+        } elseif ($osCaption -match "Windows 10" -or ($osVer.Major -ge 10 -and [int]$osBuild -lt 22000)) {
+            $osFamily = "Win10"
+        } elseif ($osCaption -match "Windows 11" -or ($osVer.Major -ge 10 -and [int]$osBuild -ge 22000)) {
+            $osFamily = "Win11"
+        }
+
         $isHDD    = ($mediaType -eq "HDD")
         $isLowRAM = ($mem.TotalRAMMB -le 12288)
 
@@ -194,6 +205,7 @@ function Get-WBSystemProfile {
         $script:CachedHardwareInfo = [PSCustomObject]@{
             OSCaption          = $osCaption
             OSBuild            = $osBuild
+            OSFamily           = $osFamily
             SystemDrive        = $sysDrive
             DiskModel          = $diskModel
             DiskMediaType      = $mediaType
@@ -208,9 +220,13 @@ function Get-WBSystemProfile {
     }
 
     $hw = $script:CachedHardwareInfo
+    $activeFamily  = $hw.OSFamily
+    $activeCaption = $hw.OSCaption
+
     return [PSCustomObject]@{
-        OSCaption          = $hw.OSCaption
+        OSCaption          = $activeCaption
         OSBuild            = $hw.OSBuild
+        OSFamily           = $activeFamily
         SystemDrive        = $hw.SystemDrive
         DiskModel          = $hw.DiskModel
         DiskMediaType      = $hw.DiskMediaType
@@ -265,13 +281,22 @@ function Get-WBRegistryState {
     )
     $resolved = Resolve-WBRegistryPath -Path $Path
     if (-not (Test-Path $resolved)) {
-        return [PSCustomObject]@{ Exists = $false; Value = $null }
+        return [PSCustomObject]@{ Exists = $false; Value = $null; Kind = "Unknown" }
     }
     $item = Get-ItemProperty -Path $resolved -Name $Name -ErrorAction SilentlyContinue
     if ($null -eq $item -or -not ($item.PSObject.Properties.Name -contains $Name)) {
-        return [PSCustomObject]@{ Exists = $false; Value = $null }
+        return [PSCustomObject]@{ Exists = $false; Value = $null; Kind = "Unknown" }
     }
-    return [PSCustomObject]@{ Exists = $true; Value = $item.$Name }
+    $regKey = Get-Item -Path $resolved -ErrorAction SilentlyContinue
+    $kindStr = "Unknown"
+    if ($null -ne $regKey) {
+        try {
+            $kindStr = $regKey.GetValueKind($Name).ToString()
+        } catch {
+            $kindStr = "Unknown"
+        }
+    }
+    return [PSCustomObject]@{ Exists = $true; Value = $item.$Name; Kind = $kindStr }
 }
 
 function Set-WBRegistryValue {
@@ -295,7 +320,10 @@ function Remove-WBRegistryValue {
     )
     $resolved = Resolve-WBRegistryPath -Path $Path
     if (Test-Path $resolved) {
-        Remove-ItemProperty -Path $resolved -Name $Name -Force -ErrorAction SilentlyContinue
+        $key = Get-Item -Path $resolved -ErrorAction Stop
+        if ($key.GetValueNames() -contains $Name) {
+            Remove-ItemProperty -Path $resolved -Name $Name -Force -ErrorAction Stop
+        }
     }
 }
 
@@ -307,6 +335,11 @@ function Test-WBTweakCondition {
         [Parameter(Mandatory = $true)]$Tweak,
         [Parameter(Mandatory = $true)]$SysProfile
     )
+    if ($Tweak.PSObject.Properties.Name -contains "supportedOS" -and $null -ne $Tweak.supportedOS) {
+        if (-not ($Tweak.supportedOS -contains $SysProfile.OSFamily)) {
+            return $false
+        }
+    }
     if (-not ($Tweak.PSObject.Properties.Name -contains "condition") -or [string]::IsNullOrEmpty($Tweak.condition)) {
         return $true
     }
@@ -330,6 +363,17 @@ function Get-WBEntryTargetValue {
     return $Entry.value
 }
 
+function Get-WBAutomaticPagefileState {
+    $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+    return [PSCustomObject]@{ Exists = $true; Value = [bool]$cs.AutomaticManagedPagefile }
+}
+
+function Set-WBAutomaticPagefile {
+    param([bool]$Enabled)
+    Get-CimInstance Win32_ComputerSystem -ErrorAction Stop |
+        Set-CimInstance -Property @{ AutomaticManagedPagefile = $Enabled } -ErrorAction Stop | Out-Null
+}
+
 function Get-WBTargetPagefileMB {
     param([Parameter(Mandatory = $true)]$SysProfile)
     $installedGB = [math]::Max(4.0, [math]::Round($SysProfile.TotalRAMMB / 1024.0, 0))
@@ -342,13 +386,50 @@ function Get-WBTargetPagefileMB {
 # ------------------------------------------------------------------------------
 function Test-WBTweakState {
     param(
-        [string]$ProfileName = "Balanced"
+        [string]$ProfileName = "Balanced",
+        [string]$TargetOS = ""
     )
     $catalog    = Get-WBTweakCatalog
     $sysProfile = Get-WBSystemProfile
-    $mmAgent    = $null
+    if (-not [string]::IsNullOrEmpty($TargetOS)) {
+        $sysProfile = [PSCustomObject]@{
+            OSCaption          = switch ($TargetOS) {
+                "Win7"  { "Microsoft Windows 7 Professional" }
+                "Win8"  { "Microsoft Windows 8.1 Pro" }
+                "Win10" { "Microsoft Windows 10 Pro" }
+                "Win11" { "Microsoft Windows 11 Enterprise" }
+                default { $sysProfile.OSCaption }
+            }
+            OSBuild            = $sysProfile.OSBuild
+            OSFamily           = $TargetOS
+            SystemDrive        = $sysProfile.SystemDrive
+            DiskModel          = $sysProfile.DiskModel
+            DiskMediaType      = $sysProfile.DiskMediaType
+            IsHDD              = $sysProfile.IsHDD
+            IsLowRAM           = $sysProfile.IsLowRAM
+            FreeDiskGB         = $sysProfile.FreeDiskGB
+            EffectiveFreeGB    = $sysProfile.EffectiveFreeGB
+            TotalDiskGB        = $sysProfile.TotalDiskGB
+            ExistingPagefileGB = $sysProfile.ExistingPagefileGB
+            RecommendedProfile = $sysProfile.RecommendedProfile
+            TotalRAMMB         = $sysProfile.TotalRAMMB
+            UsedRAMMB          = $sysProfile.UsedRAMMB
+            AvailRAMMB         = $sysProfile.AvailRAMMB
+            LoadPercent        = $sysProfile.LoadPercent
+            CommitTotalMB      = $sysProfile.CommitTotalMB
+            CommitUsedMB       = $sysProfile.CommitUsedMB
+        }
+    }
+    $mmAgent      = $null
+    $mmPermission = $false
     if (Get-Command Get-MMAgent -ErrorAction SilentlyContinue) {
-        $mmAgent = Get-MMAgent -ErrorAction SilentlyContinue
+        try {
+            $mmAgent = Get-MMAgent -ErrorAction Stop
+        } catch {
+            if ($_.CategoryInfo.Category -eq 'PermissionDenied' -or $_.Exception.Message -match 'Access is denied') {
+                $mmPermission = $true
+            }
+        }
     }
 
     $results = @()
@@ -394,9 +475,12 @@ function Test-WBTweakState {
             "mmagent" {
                 $propName = $tweak.feature
                 $tgtText  = [string]$tweak.enabled
-                if ($null -eq $mmAgent -or -not ($mmAgent.PSObject.Properties.Name -contains $propName)) {
-                    $curText   = "Requires Admin"
+                if (-not $applicable) {
+                    $curText   = "Feature Not Available"
                     $isApplied = $false
+                } elseif ($null -eq $mmAgent -or -not ($mmAgent.PSObject.Properties.Name -contains $propName)) {
+                    $curText   = if ($mmPermission) { "Requires Admin" } else { "Could Not Verify" }
+                    $isApplied = $null
                 } else {
                     $curVal    = [bool]$mmAgent.$propName
                     $curText   = [string]$curVal
@@ -406,7 +490,7 @@ function Test-WBTweakState {
             "pagefile" {
                 $targetMB = Get-WBTargetPagefileMB -SysProfile $sysProfile
                 $mmPath   = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-                $autoReg  = Get-WBRegistryState -Path $mmPath -Name "AutomaticManagedPagefile"
+                $autoReg  = Get-WBAutomaticPagefileState
                 $pfReg    = Get-WBRegistryState -Path $mmPath -Name "PagingFiles"
                 $tgtText  = "Fixed $targetMB MB"
 
@@ -423,6 +507,8 @@ function Test-WBTweakState {
 
         $stateLabel = if (-not $applicable) {
             "NotApplicable"
+        } elseif ($null -eq $isApplied) {
+            "Unknown"
         } elseif ($isApplied) {
             "Applied"
         } else {
@@ -468,7 +554,7 @@ function New-WBSnapshot {
                 $regBackup += [PSCustomObject]@{
                     Path   = $entry.path
                     Name   = $entry.name
-                    Kind   = $entry.kind
+                    Kind   = if ($st.Exists -and $st.Kind -ne "Unknown") { $st.Kind } else { $entry.kind }
                     Exists = $st.Exists
                     Value  = $st.Value
                 }
@@ -502,15 +588,17 @@ function New-WBSnapshot {
         $mm = Get-MMAgent -ErrorAction SilentlyContinue
         if ($mm) {
             $mmBackup = @{
-                MemoryCompression    = [bool]$mm.MemoryCompression
-                PageCombining        = [bool]$mm.PageCombining
-                ApplicationPreLaunch = [bool]$mm.ApplicationPreLaunch
+            }
+            foreach ($feature in @('MemoryCompression', 'PageCombining', 'ApplicationPreLaunch')) {
+                if ($mm.PSObject.Properties.Name -contains $feature) {
+                    $mmBackup[$feature] = [bool]$mm.$feature
+                }
             }
         }
     }
 
     $mmPath  = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-    $autoReg = Get-WBRegistryState -Path $mmPath -Name "AutomaticManagedPagefile"
+    $autoReg = Get-WBAutomaticPagefileState
     $pfReg   = Get-WBRegistryState -Path $mmPath -Name "PagingFiles"
 
     $snapshotObj = [PSCustomObject]@{
@@ -529,14 +617,36 @@ function New-WBSnapshot {
         }
     }
 
-    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $file  = Join-Path $paths.BackupDir "backup-$stamp.json"
-    $json  = $snapshotObj | ConvertTo-Json -Depth 6
-    Set-Content -Path $file -Value $json -Encoding UTF8 -Force
-    Set-Content -Path $paths.LatestBackup -Value $json -Encoding UTF8 -Force
+    $stamp     = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+    $file      = Join-Path $paths.BackupDir "backup-$stamp.json"
+    $tmp       = "$file.tmp"
+    $latestTmp = "$($paths.LatestBackup).$([guid]::NewGuid().ToString('N')).tmp"
+    try {
+        if (-not (Test-Path $paths.BackupDir)) {
+            New-Item -ItemType Directory -Path $paths.BackupDir -Force -ErrorAction Stop | Out-Null
+        }
+        $json  = $snapshotObj | ConvertTo-Json -Depth 6
+        if ([string]::IsNullOrEmpty($json) -or $json.Length -lt 20) {
+            throw "Snapshot serialization produced invalid or empty JSON."
+        }
+        Set-Content -Path $tmp -Value $json -Encoding UTF8 -Force -ErrorAction Stop
+        Copy-Item -Path $tmp -Destination $latestTmp -Force -ErrorAction Stop
 
-    Write-WBLog "Saved system state snapshot to: $file" "OK"
-    return $file
+        Move-Item -Path $tmp -Destination $file -Force -ErrorAction Stop
+        if (Test-Path $paths.LatestBackup) {
+            [System.IO.File]::Replace($latestTmp, $paths.LatestBackup, $null)
+        } else {
+            [System.IO.File]::Move($latestTmp, $paths.LatestBackup)
+        }
+
+        Write-WBLog "Saved verified system state snapshot to: $file" "OK"
+        return $file
+    } catch {
+        Write-WBLog "CRITICAL: Failed to write system snapshot: $($_.Exception.Message)" "ERROR"
+        if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $latestTmp) { Remove-Item $latestTmp -Force -ErrorAction SilentlyContinue }
+        return $null
+    }
 }
 
 function Restore-WBSnapshot {
@@ -559,43 +669,83 @@ function Restore-WBSnapshot {
     Write-WBLog "Restoring exact pre-optimization state from: $SnapshotPath" "HEAD"
     $snap = Get-Content -Path $SnapshotPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
+    $restoreErrors = 0
+
     foreach ($reg in $snap.Registry) {
-        if ($reg.Exists) {
-            Set-WBRegistryValue -Path $reg.Path -Name $reg.Name -Value $reg.Value -Kind $reg.Kind
-            Write-WBLog "Restored registry $($reg.Name) = $($reg.Value)" "INFO"
-        } else {
-            Remove-WBRegistryValue -Path $reg.Path -Name $reg.Name
-            Write-WBLog "Removed policy key $($reg.Name) (was not present before)" "INFO"
+        try {
+            if ($reg.Exists) {
+                Set-WBRegistryValue -Path $reg.Path -Name $reg.Name -Value $reg.Value -Kind $reg.Kind
+                Write-WBLog "Restored registry $($reg.Name) = $($reg.Value)" "INFO"
+            } else {
+                Remove-WBRegistryValue -Path $reg.Path -Name $reg.Name
+                Write-WBLog "Removed policy key $($reg.Name) (was not present before)" "INFO"
+            }
+        } catch {
+            Write-WBLog "Failed restoring registry $($reg.Name): $($_.Exception.Message)" "WARN"
+            $restoreErrors++
         }
     }
 
     foreach ($svc in $snap.Services) {
         $s = Get-Service -Name $svc.Name -ErrorAction SilentlyContinue
         if ($s) {
-            Set-Service -Name $svc.Name -StartupType $svc.StartType -ErrorAction SilentlyContinue
-            if ($svc.Status -eq "Running" -and $svc.StartType -ne "Disabled") {
-                Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
+            try {
+                Set-Service -Name $svc.Name -StartupType $svc.StartType -ErrorAction Stop
+                if ($svc.Status -eq "Running" -and $svc.StartType -ne "Disabled") {
+                    Start-Service -Name $svc.Name -ErrorAction Stop
+                } elseif ($svc.Status -eq 'Stopped') {
+                    Stop-Service -Name $svc.Name -ErrorAction Stop
+                }
+                Write-WBLog "Restored service $($svc.Name) -> $($svc.StartType)" "INFO"
+            } catch {
+                Write-WBLog "Failed restoring service $($svc.Name): $($_.Exception.Message)" "WARN"
+                $restoreErrors++
             }
-            Write-WBLog "Restored service $($svc.Name) -> $($svc.StartType)" "INFO"
         }
     }
 
     if ($snap.MMAgent -and (Get-Command Enable-MMAgent -ErrorAction SilentlyContinue)) {
-        if ($snap.MMAgent.MemoryCompression) { Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue } else { Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue }
-        if ($snap.MMAgent.PageCombining) { Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue } else { Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue }
-        if ($snap.MMAgent.ApplicationPreLaunch) { Enable-MMAgent -ApplicationPreLaunch -ErrorAction SilentlyContinue } else { Disable-MMAgent -ApplicationPreLaunch -ErrorAction SilentlyContinue }
-        Write-WBLog "Restored MMAgent memory compression & pre-launch state." "INFO"
+        try {
+            foreach ($feature in @('MemoryCompression', 'PageCombining', 'ApplicationPreLaunch')) {
+                if ($snap.MMAgent.PSObject.Properties.Name -contains $feature) {
+                    $cmdName = if ($snap.MMAgent.$feature) { 'Enable-MMAgent' } else { 'Disable-MMAgent' }
+                    $cmd = Get-Command $cmdName -ErrorAction Stop
+                    if (-not $cmd.Parameters.ContainsKey($feature)) { throw "Unsupported memory feature: $feature" }
+                    $argsForFeature = @{ ErrorAction = 'Stop' }
+                    $argsForFeature[$feature] = $true
+                    & $cmd @argsForFeature
+                }
+            }
+            Write-WBLog "Restored MMAgent memory compression & pre-launch state." "INFO"
+        } catch {
+            Write-WBLog "Failed restoring MMAgent state: $($_.Exception.Message)" "WARN"
+            $restoreErrors++
+        }
     }
 
     if ($snap.Pagefile) {
         $mmPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-        if ($snap.Pagefile.AutoExists) {
-            Set-WBRegistryValue -Path $mmPath -Name "AutomaticManagedPagefile" -Value $snap.Pagefile.AutoValue -Kind "DWord"
+        try {
+            if ($snap.Pagefile.AutoExists) {
+                Set-WBAutomaticPagefile -Enabled ([bool]$snap.Pagefile.AutoValue)
+            } else {
+                throw 'Snapshot does not contain the automatic pagefile state; cannot restore it safely.'
+            }
+            if ($snap.Pagefile.PfExists -and $null -ne $snap.Pagefile.PfValue) {
+                Set-WBRegistryValue -Path $mmPath -Name "PagingFiles" -Value ([string[]]$snap.Pagefile.PfValue) -Kind "MultiString"
+            } else {
+                Remove-WBRegistryValue -Path $mmPath -Name "PagingFiles"
+            }
+            Write-WBLog "Restored pagefile configuration." "INFO"
+        } catch {
+            Write-WBLog "Failed restoring pagefile configuration: $($_.Exception.Message)" "WARN"
+            $restoreErrors++
         }
-        if ($snap.Pagefile.PfExists -and $null -ne $snap.Pagefile.PfValue) {
-            Set-WBRegistryValue -Path $mmPath -Name "PagingFiles" -Value ([string[]]$snap.Pagefile.PfValue) -Kind "MultiString"
-        }
-        Write-WBLog "Restored pagefile configuration." "INFO"
+    }
+
+    if ($restoreErrors -gt 0) {
+        Write-WBLog "Snapshot undo completed with $restoreErrors warning(s)/failure(s). Please review log output." "WARN"
+        return $false
     }
 
     Write-WBLog "Snapshot undo completed successfully." "OK"
@@ -641,13 +791,18 @@ function Restore-WBStockDefaults {
     }
 
     if (Get-Command Enable-MMAgent -ErrorAction SilentlyContinue) {
-        Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
-        Enable-MMAgent -ApplicationPreLaunch -ErrorAction SilentlyContinue
+        $enable = Get-Command Enable-MMAgent
+        foreach ($feature in @('MemoryCompression', 'ApplicationPreLaunch')) {
+            if ($enable.Parameters.ContainsKey($feature)) {
+                $options = @{ ErrorAction = 'Stop' }; $options[$feature] = $true
+                & $enable @options
+            }
+        }
         Write-WBLog "Restored stock Windows MMAgent settings." "INFO"
     }
 
     $mmPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-    Set-WBRegistryValue -Path $mmPath -Name "AutomaticManagedPagefile" -Value 1 -Kind "DWord"
+    Set-WBAutomaticPagefile -Enabled $true
     Set-WBRegistryValue -Path $mmPath -Name "PagingFiles" -Value @("?:\pagefile.sys") -Kind "MultiString"
     Write-WBLog "Restored Windows automatic pagefile management." "INFO"
 
@@ -663,6 +818,7 @@ function Invoke-WBTweaks {
         [ValidateSet("Conservative", "Balanced", "Aggressive")]
         [string]$ProfileName = "Balanced",
         [string[]]$TweakIds = @(),
+        [string]$TargetOS = "",
         [switch]$WhatIf,
         [switch]$SkipSnapshot,
         [switch]$SkipFlush
@@ -675,17 +831,47 @@ function Invoke-WBTweaks {
 
     $catalog    = Get-WBTweakCatalog
     $sysProfile = Get-WBSystemProfile
+    if (-not [string]::IsNullOrEmpty($TargetOS)) {
+        if (-not $WhatIf) {
+            Write-WBLog "SAFETY GUARD: Simulation target OS ($TargetOS) is ignored during live optimization. Live changes only apply to host OS ($($sysProfile.OSFamily))." "WARN"
+            $TargetOS = ""
+        } else {
+            $sysProfile = [PSCustomObject]@{
+                OSCaption          = switch ($TargetOS) {
+                    "Win7"  { "Microsoft Windows 7 Professional (Simulated)" }
+                    "Win8"  { "Microsoft Windows 8.1 Pro (Simulated)" }
+                    "Win10" { "Microsoft Windows 10 Pro (Simulated)" }
+                    "Win11" { "Microsoft Windows 11 Enterprise (Simulated)" }
+                    default { $sysProfile.OSCaption }
+                }
+                OSBuild            = $sysProfile.OSBuild
+                OSFamily           = $TargetOS
+                SystemDrive        = $sysProfile.SystemDrive
+                DiskModel          = $sysProfile.DiskModel
+                DiskMediaType      = $sysProfile.DiskMediaType
+                IsHDD              = $sysProfile.IsHDD
+                IsLowRAM           = $sysProfile.IsLowRAM
+                FreeDiskGB         = $sysProfile.FreeDiskGB
+                EffectiveFreeGB    = $sysProfile.EffectiveFreeGB
+                TotalDiskGB        = $sysProfile.TotalDiskGB
+                ExistingPagefileGB = $sysProfile.ExistingPagefileGB
+                RecommendedProfile = $sysProfile.RecommendedProfile
+                TotalRAMMB         = $sysProfile.TotalRAMMB
+                UsedRAMMB          = $sysProfile.UsedRAMMB
+                AvailRAMMB         = $sysProfile.AvailRAMMB
+                LoadPercent        = $sysProfile.LoadPercent
+                CommitTotalMB      = $sysProfile.CommitTotalMB
+                CommitUsedMB       = $sysProfile.CommitUsedMB
+            }
+        }
+    }
     $memBefore  = Get-WBMemorySnapshot
 
     $modeBanner = if ($WhatIf) { "DRY-RUN PREVIEW MODE (No changes will be written)" } else { "LIVE OPTIMIZATION ($ProfileName Profile)" }
     Write-WBLog "======================================================================" "HEAD"
-    Write-WBLog "  WinBreathe v2.0 - $modeBanner" "HEAD"
-    Write-WBLog "  Hardware: $($sysProfile.TotalRAMMB) MB RAM | Disk: $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)" "HEAD"
+    Write-WBLog "  WinBreathe v2.1 - Universal Windows Optimizer - $modeBanner" "HEAD"
+    Write-WBLog "  OS: $($sysProfile.OSCaption) [$($sysProfile.OSFamily)] | RAM: $($sysProfile.TotalRAMMB) MB | Disk: $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)" "HEAD"
     Write-WBLog "======================================================================" "HEAD"
-
-    if (-not $WhatIf -and -not $SkipSnapshot) {
-        New-WBSnapshot -Label "Auto-Backup before $ProfileName run" | Out-Null
-    }
 
     # Select tweaks to apply
     $selectedTweaks = @()
@@ -699,18 +885,35 @@ function Invoke-WBTweaks {
         }
     }
 
+    if (-not $WhatIf -and -not $SkipSnapshot) {
+        $snapFile = try { New-WBSnapshot -Label "Auto-Backup before $ProfileName run" } catch { $null }
+        if ([string]::IsNullOrEmpty($snapFile) -or -not (Test-Path $snapFile)) {
+            Write-WBLog "CRITICAL: Snapshot backup failed! Aborting optimization to prevent irreversible system state." "ERROR"
+            return [PSCustomObject]@{
+                Profile      = $ProfileName
+                WhatIf       = $false
+                AppliedCount = 0
+                SkippedCount = $selectedTweaks.Count
+                BeforeRAMMB  = $memBefore.UsedRAMMB
+                AfterRAMMB   = $memBefore.UsedRAMMB
+                ReclaimedMB  = 0
+            }
+        }
+    }
+
     $appliedCount = 0
     $skippedCount = 0
 
     foreach ($tweak in $selectedTweaks) {
         if (-not (Test-WBTweakCondition -Tweak $tweak -SysProfile $sysProfile)) {
-            Write-WBLog "SKIP [$($tweak.id)]: Hardware condition ($($tweak.condition)) not met on this PC." "INFO"
+            Write-WBLog "SKIP [$($tweak.id)]: OS or hardware applicability condition not met on this PC." "INFO"
             $skippedCount++
             continue
         }
 
         switch ($tweak.type) {
             "registry" {
+                $tweakSuccess = $true
                 foreach ($entry in $tweak.entries) {
                     $targetVal = Get-WBEntryTargetValue -Entry $entry -ProfileName $ProfileName
                     if ($WhatIf) {
@@ -722,13 +925,19 @@ function Invoke-WBTweaks {
                             Set-WBRegistryValue -Path $entry.path -Name $entry.name -Value $targetVal -Kind $entry.kind
                         } catch {
                             Write-WBLog "Failed writing $($entry.name): $($_.Exception.Message)" "WARN"
+                            $tweakSuccess = $false
                         }
                     }
                 }
-                if (-not $WhatIf) {
+                if ($WhatIf) {
+                    $appliedCount++
+                } elseif ($tweakSuccess) {
                     Write-WBLog "APPLIED [$($tweak.id)]: $($tweak.title)" "OK"
+                    $appliedCount++
+                } else {
+                    Write-WBLog "FAILED [$($tweak.id)]: $($tweak.title) - one or more registry writes failed or were denied." "ERROR"
+                    $skippedCount++
                 }
-                $appliedCount++
             }
             "service" {
                 $svc = Get-Service -Name $tweak.service -ErrorAction SilentlyContinue
@@ -739,12 +948,17 @@ function Invoke-WBTweaks {
                     Write-WBLog "$($tweak.id): Service '$($tweak.service)' -> $($tweak.startupType) (Current: $($svc.StartType)/$($svc.Status))" "PREVIEW"
                     $appliedCount++
                 } else {
-                    if ($tweak.startupType -eq "Disabled" -and $svc.Status -eq "Running") {
-                        Stop-Service -Name $tweak.service -Force -ErrorAction SilentlyContinue
+                    try {
+                        if ($tweak.startupType -eq "Disabled" -and $svc.Status -eq "Running") {
+                            Stop-Service -Name $tweak.service -Force -ErrorAction Stop
+                        }
+                        Set-Service -Name $tweak.service -StartupType $tweak.startupType -ErrorAction Stop
+                        Write-WBLog "APPLIED [$($tweak.id)]: $($tweak.title) ($($tweak.service) -> $($tweak.startupType))" "OK"
+                        $appliedCount++
+                    } catch {
+                        Write-WBLog "FAILED [$($tweak.id)]: $($tweak.title) - $($_.Exception.Message)" "ERROR"
+                        $skippedCount++
                     }
-                    Set-Service -Name $tweak.service -StartupType $tweak.startupType -ErrorAction SilentlyContinue
-                    Write-WBLog "APPLIED [$($tweak.id)]: $($tweak.title) ($($tweak.service) -> $($tweak.startupType))" "OK"
-                    $appliedCount++
                 }
             }
             "mmagent" {
@@ -755,22 +969,27 @@ function Invoke-WBTweaks {
                     Write-WBLog "$($tweak.id): Set MMAgent $($tweak.feature) = $($tweak.enabled)" "PREVIEW"
                     $appliedCount++
                 } else {
-                    $feat = $tweak.feature
-                    if ($tweak.enabled) {
-                        switch ($feat) {
-                            "MemoryCompression"    { Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue }
-                            "PageCombining"        { Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue }
-                            "ApplicationPreLaunch" { Enable-MMAgent -ApplicationPreLaunch -ErrorAction SilentlyContinue }
+                    try {
+                        $feat = $tweak.feature
+                        if ($tweak.enabled) {
+                            switch ($feat) {
+                                "MemoryCompression"    { Enable-MMAgent -MemoryCompression -ErrorAction Stop }
+                                "PageCombining"        { Enable-MMAgent -PageCombining -ErrorAction Stop }
+                                "ApplicationPreLaunch" { Enable-MMAgent -ApplicationPreLaunch -ErrorAction Stop }
+                            }
+                        } else {
+                            switch ($feat) {
+                                "MemoryCompression"    { Disable-MMAgent -MemoryCompression -ErrorAction Stop }
+                                "PageCombining"        { Disable-MMAgent -PageCombining -ErrorAction Stop }
+                                "ApplicationPreLaunch" { Disable-MMAgent -ApplicationPreLaunch -ErrorAction Stop }
+                            }
                         }
-                    } else {
-                        switch ($feat) {
-                            "MemoryCompression"    { Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue }
-                            "PageCombining"        { Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue }
-                            "ApplicationPreLaunch" { Disable-MMAgent -ApplicationPreLaunch -ErrorAction SilentlyContinue }
-                        }
+                        Write-WBLog "APPLIED [$($tweak.id)]: $($tweak.title)" "OK"
+                        $appliedCount++
+                    } catch {
+                        Write-WBLog "FAILED [$($tweak.id)]: $($tweak.title) - $($_.Exception.Message)" "ERROR"
+                        $skippedCount++
                     }
-                    Write-WBLog "APPLIED [$($tweak.id)]: $($tweak.title)" "OK"
-                    $appliedCount++
                 }
             }
             "pagefile" {
@@ -782,15 +1001,20 @@ function Invoke-WBTweaks {
                     Write-WBLog "SKIP [mem.pagefile]: Insufficient disk headroom ($($sysProfile.EffectiveFreeGB) GB available)." "WARN"
                     $skippedCount++
                 } elseif ($WhatIf) {
-                    Write-WBLog "mem.pagefile: Lock contiguous pagefile at $targetMB MB ($targetGB GB) on $($sysProfile.SystemDrive)" "PREVIEW"
+                    Write-WBLog "mem.pagefile: Configure fixed-size pagefile at $targetMB MB ($targetGB GB) on $($sysProfile.SystemDrive)" "PREVIEW"
                     $appliedCount++
                 } else {
-                    $mmPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-                    $pfSpec = "$($sysProfile.SystemDrive)\pagefile.sys $targetMB $targetMB"
-                    Set-WBRegistryValue -Path $mmPath -Name "AutomaticManagedPagefile" -Value 0 -Kind "DWord"
-                    Set-WBRegistryValue -Path $mmPath -Name "PagingFiles" -Value @($pfSpec) -Kind "MultiString"
-                    Write-WBLog "APPLIED [mem.pagefile]: Fixed contiguous pagefile at $targetMB MB ($pfSpec)" "OK"
-                    $appliedCount++
+                    try {
+                        $mmPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+                        $pfSpec = "$($sysProfile.SystemDrive)\pagefile.sys $targetMB $targetMB"
+                        Set-WBAutomaticPagefile -Enabled $false
+                        Set-WBRegistryValue -Path $mmPath -Name "PagingFiles" -Value @($pfSpec) -Kind "MultiString"
+                        Write-WBLog "APPLIED [mem.pagefile]: Fixed-size pagefile (restart required) at $targetMB MB ($pfSpec)" "OK"
+                        $appliedCount++
+                    } catch {
+                        Write-WBLog "FAILED [mem.pagefile]: $($_.Exception.Message)" "ERROR"
+                        $skippedCount++
+                    }
                 }
             }
         }
@@ -1016,6 +1240,9 @@ function Set-WBStartupItemState {
 # Hardened Windows Update Persistence Guard (WB-02: WellKnownSidType ACLs)
 # ------------------------------------------------------------------------------
 function Get-WBUpdateGuardStatus {
+    if (-not (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+        return [PSCustomObject]@{ Installed = $false; TaskName = 'WinBreathe_UpdateGuard'; State = 'Unsupported on this system'; LastRunTime = 'N/A' }
+    }
     $task = Get-ScheduledTask -TaskName "WinBreathe_UpdateGuard" -ErrorAction SilentlyContinue
     if (-not $task) {
         $legacy = Get-ScheduledTask -TaskName "Win11LowRamOptimizer_AutoGuard" -ErrorAction SilentlyContinue
@@ -1040,6 +1267,11 @@ function Get-WBUpdateGuardStatus {
 
 function Install-WBUpdateGuard {
     param([string]$ProfileName = "Balanced")
+    $ErrorActionPreference = 'Stop'
+    if (-not (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) {
+        Write-WBLog 'Update Guard requires the Windows 8/8.1 or later ScheduledTasks module. No task was changed.' 'WARN'
+        return $false
+    }
     if (-not (Test-WBAdmin)) {
         Write-WBLog "Administrator privileges required to install the Update Guard." "ERROR"
         return $false
@@ -1066,7 +1298,8 @@ function Install-WBUpdateGuard {
 
         Set-Acl -Path $secureDir -AclObject $acl -ErrorAction Stop
     } catch {
-        Write-WBLog "Warning hardening ACL on ${secureDir}: $($_.Exception.Message)" "WARN"
+        Write-WBLog "SECURITY ABORT: Failed to harden ACL on ${secureDir}: $($_.Exception.Message). Task registration aborted to prevent unprivileged tampering." "ERROR"
+        return $false
     }
 
     # Copy module, CLI, and config to secure ProgramData directory
@@ -1082,7 +1315,7 @@ function Install-WBUpdateGuard {
     Copy-Item -Path $paths.ConfigFile -Destination (Join-Path $secCfg "tweaks.json") -Force
 
     $targetScript = Join-Path $secSrc "WinBreathe.ps1"
-    $argStr = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$targetScript`" -Profile $ProfileName -SkipSnapshot"
+    $argStr = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$targetScript`" -Profile $ProfileName -SkipSnapshot -SkipFlush"
 
     $action    = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $argStr
     $trigger   = New-ScheduledTaskTrigger -AtStartup
@@ -1090,13 +1323,18 @@ function Install-WBUpdateGuard {
     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
     $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 
-    Register-ScheduledTask -TaskName "WinBreathe_UpdateGuard" -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Re-enforces WinBreathe ($ProfileName) optimizations 90s after boot to counter Windows Update policy resets." -Force | Out-Null
+    Register-ScheduledTask -TaskName "WinBreathe_UpdateGuard" -Action $action -Trigger $trigger -Principal $principal -Settings $settings -ErrorAction Stop -Description "Re-enforces WinBreathe ($ProfileName) optimizations 90s after boot to counter Windows Update policy resets." -Force | Out-Null
 
     Write-WBLog "Installed Hardened Update Guard ('WinBreathe_UpdateGuard') under SYSTEM with 90s boot delay." "OK"
     return $true
 }
 
 function Uninstall-WBUpdateGuard {
+    $ErrorActionPreference = 'Stop'
+    if (-not (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) {
+        Write-WBLog 'Update Guard requires the Windows 8/8.1 or later ScheduledTasks module. No task was changed.' 'WARN'
+        return $false
+    }
     if (-not (Test-WBAdmin)) {
         Write-WBLog "Administrator privileges required to remove Update Guard." "ERROR"
         return $false
@@ -1114,114 +1352,139 @@ function Uninstall-WBUpdateGuard {
 # HTML & Markdown System Telemetry Report Exporter
 # ------------------------------------------------------------------------------
 function Export-WBReport {
-    param([string]$ProfileName = "Balanced")
-    $paths      = Get-WBPaths
-    $sys        = Get-WBSystemProfile
-    $states     = Test-WBTweakState -ProfileName $ProfileName
-    $topProcs   = Get-WBTopProcesses -Top 10
-    $guard      = Get-WBUpdateGuardStatus
-    $stamp      = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $fileStamp  = Get-Date -Format "yyyyMMdd-HHmmss"
-
-    $mdPath   = Join-Path $paths.ReportDir "WinBreathe-Report-$fileStamp.md"
+    param([string]$ProfileName = 'Balanced')
+    $paths = Get-WBPaths
+    $sys = Get-WBSystemProfile
+    $states = @(Test-WBTweakState -ProfileName $ProfileName)
+    $apps = @(Get-WBTopProcesses -Top 10)
+    $guard = Get-WBUpdateGuardStatus
+    $stamp = Get-Date -Format 'dd MMM yyyy, HH:mm'
+    $fileStamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+    $mdPath = Join-Path $paths.ReportDir "WinBreathe-Report-$fileStamp.md"
     $htmlPath = Join-Path $paths.ReportDir "WinBreathe-Report-$fileStamp.html"
-
-    $appliedCount = @($states | Where-Object { $_.State -eq "Applied" }).Count
-    $totalCount   = @($states).Count
-
-    $mdLines = @(
-        "# WinBreathe v2.0 - System Optimization & Drift Report",
-        "**Generated:** $stamp  ",
-        "**OS:** $($sys.OSCaption) (Build $($sys.OSBuild))  ",
-        "**Memory:** $($sys.UsedRAMMB) MB / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)% Load, $($sys.AvailRAMMB) MB Available)  ",
-        "**Storage:** $($sys.DiskModel) ($($sys.DiskMediaType)) - $($sys.FreeDiskGB) GB Free on $($sys.SystemDrive)  ",
-        "**Update Guard:** $($guard.State)  ",
-        "**Active Tweaks:** $appliedCount / $totalCount  ",
-        "",
-        "## Tweak Drift Status ($ProfileName Profile)",
-        "| ID | Category | Title | Risk | Status | Current Value |",
-        "|---|---|---|---|---|---|"
-    )
-    foreach ($s in $states) {
-        $mdLines += "| `$($s.Id)` | $($s.Category) | $($s.Title) | $($s.Risk) | **$($s.State)** | `$($s.CurrentValue)` |"
+    # Encode dynamic values in both formats, including app names and catalog text.
+    function Html($Value) { [System.Net.WebUtility]::HtmlEncode([string]$Value) }
+    function ConvertTo-WBReportMarkdown($Value) { (Html $Value).Replace('|', '&#124;').Replace("`r", ' ').Replace("`n", ' ') }
+    $recommended = @($states | Where-Object { $_.InProfile -and $_.Applicable })
+    $matching = @($recommended | Where-Object IsApplied).Count
+    $remaining = $recommended.Count - $matching
+    $usedGB = '{0:N1}' -f ($sys.UsedRAMMB / 1024.0)
+    $totalGB = '{0:N1}' -f ($sys.TotalRAMMB / 1024.0)
+    $freeGB = '{0:N1}' -f ($sys.AvailRAMMB / 1024.0)
+    $memoryText = "$usedGB of $totalGB GB in use ($($sys.LoadPercent)%); $freeGB GB available."
+    $advice = if ($sys.LoadPercent -ge 90) {
+        'Memory is nearly full right now. Save your work and close apps or tabs you no longer need.'
+    } elseif ($sys.LoadPercent -ge 75) {
+        'Much of your memory is in use right now. If the PC feels slow, review the apps below and close unused tabs.'
+    } else {
+        'Memory has room available right now. No action is needed based on this reading alone.'
     }
-    $mdLines += ""
-    $mdLines += "## Top 10 Memory Consumers"
-    $mdLines += "| Application | Processes | RAM (MB) | Protection |"
-    $mdLines += "|---|---|---|---|"
-    foreach ($p in $topProcs) {
-        $mdLines += "| **$($p.AppName)** | $($p.ProcessCount) | $($p.MemoryMB) MB | $($p.SafetyStatus) |"
+    $settingsText = if ($recommended.Count -eq 0) {
+        'No settings from this profile are available for this computer.'
+    } else {
+        "$matching of $($recommended.Count) available settings in the $ProfileName profile match the suggested values."
     }
-
-    Set-Content -Path $mdPath -Value ($mdLines -join "`r`n") -Encoding UTF8 -Force
-
-    # Build clean Catppuccin Dark HTML Report
-    $rowsHtml = ""
-    foreach ($s in $states) {
-        $badgeColor = switch ($s.State) {
-            "Applied"       { "#a6e3a1" }
-            "NotApplicable" { "#9399b2" }
-            default         { "#f9e2af" }
+    $findings = @("Your computer is using $($sys.LoadPercent)% of its memory. It has about $freeGB GB left for opening apps and doing more work.")
+    $userApps = @($apps | Where-Object { $_.AppName -notmatch '^(svchost|System|Idle|Memory Compression|MsMpEng|explorer|dwm|Registry|services|lsass|csrss)$' } | Select-Object -First 3)
+    if ($userApps.Count -gt 0) {
+        $appText = ($userApps | ForEach-Object { "$($_.AppName) ($($_.MemoryMB) MB)" }) -join ', '
+        $findings += "The largest apps listed are $appText. If your computer feels slow, save your work and close windows or tabs you no longer need. Start there before changing more Windows settings."
+    }
+    $unmatched = @($recommended | Where-Object { $_.IsApplied -eq $false })
+    $unknown = @($recommended | Where-Object { $null -eq $_.IsApplied })
+    $findings += "WinBreathe checked the settings in your $ProfileName profile. $matching out of $($recommended.Count) are already in place."
+    if ($unmatched.Count -gt 0) {
+        $names = ($unmatched | ForEach-Object { $_.Title }) -join '; '
+        $findings += "These settings are confirmed not in place: $names. Leave the settings that already match alone. Some changes need an app restart or a Windows restart to take effect."
+    }
+    if ($unknown.Count -gt 0) {
+        $adminUnk = @($unknown | Where-Object { $_.CurrentValue -eq 'Requires Admin' })
+        $otherUnk = @($unknown | Where-Object { $_.CurrentValue -ne 'Requires Admin' })
+        if ($adminUnk.Count -gt 0) {
+            $admNames = ($adminUnk | ForEach-Object { $_.Title }) -join '; '
+            $findings += "Could not verify - administrator access required: $admNames. Their current state could not be inspected without elevation."
         }
-        $rowsHtml += "<tr><td><code>$($s.Id)</code></td><td>$($s.Category)</td><td>$($s.Title)</td><td>$($s.Risk)</td><td style='color:$badgeColor;font-weight:bold;'>$($s.State)</td><td><code>$($s.CurrentValue)</code></td></tr>`n"
+        if ($otherUnk.Count -gt 0) {
+            $othNames = ($otherUnk | ForEach-Object { $_.Title }) -join '; '
+            $findings += "Could not verify: $othNames. Their current state could not be determined."
+        }
     }
-
-    $procHtml = ""
-    foreach ($p in $topProcs) {
-        $protColor = if ($p.IsProtected) { "#89b4fa" } else { "#cdd6f4" }
-        $procHtml += "<tr><td><strong>$($p.AppName)</strong></td><td>$($p.ProcessCount)</td><td>$($p.MemoryMB) MB</td><td style='color:$protColor'>$($p.SafetyStatus)</td></tr>`n"
+    if ($unmatched.Count -eq 0 -and $unknown.Count -eq 0 -and $recommended.Count -gt 0) {
+        $findings += 'All available settings in this profile are already in place. You do not need to apply the same profile again.'
     }
-
+    $findings += "Your $($sys.SystemDrive) drive has $($sys.FreeDiskGB) GB free. Free space tells us how much room is left, but not how fast the drive is working."
+    $guardText = if ($guard.Installed) { 'On: selected profile settings are reapplied after startup.' }
+        elseif ($guard.State -like 'Unsupported*') { 'Unavailable on this version of Windows.' }
+        else { 'Off: settings are not automatically reapplied after startup.' }
+    $nextSteps = @()
+    if ($sys.LoadPercent -ge 75 -and $userApps.Count -gt 0) {
+        $nextSteps += "Start with $($userApps[0].AppName): save your work and close windows or tabs you no longer need. Then refresh the dashboard and check whether more memory is available. Leave Windows services, security software and your VPN running."
+    } else { $nextSteps += $advice }
+    foreach ($item in $unmatched) {
+        if ($item.Id -eq 'win.widgets') {
+            $nextSteps += 'If you do not use Windows Widgets (the news and weather panel), open Optimize Tweaks and select only Turn off Windows Widgets. Preview the change before applying it. This report does not tell us whether Widgets is currently running.'
+        } else {
+            $nextSteps += "Review '$($item.Title)' in Optimize Tweaks and preview it before applying. What it changes: $($item.Description) A different value may be intentional."
+        }
+    }
+    if ($unknown.Count -gt 0) {
+        $nextSteps += 'To inspect or configure unverified memory compression, page combining, or pre-launch settings, re-run WinBreathe as Administrator.'
+    }
+    $nextSteps += 'Try the task that felt slow again. If it still feels slow, open Task Manager and check whether CPU or Disk usage stays high while the problem happens.'
+    $nextSteps += 'This report shows your computer now. Without a before-and-after comparison, it cannot tell you how much WinBreathe improved performance.'
+    $md = @('# Your WinBreathe computer report', '', "Created: $stamp | Windows: $(ConvertTo-WBReportMarkdown $sys.OSCaption)", '', '## 1. What is happening on your computer', '')
+    foreach ($finding in $findings) { $md += @((ConvertTo-WBReportMarkdown $finding), '') }
+    $md += @('## What to do next', '')
+    foreach ($step in $nextSteps) { $md += "- $(ConvertTo-WBReportMarkdown $step)" }
+    $md += @('', '---', '', '## 2. Technical details', '', '### Computer readings', '', "- Memory: $memoryText", "- Free storage: $($sys.FreeDiskGB) GB", "- Profile: $ProfileName ($matching / $($recommended.Count) settings match)", "- Automatic reapply: $guardText", '', '### Settings', '', 'Matching means the current value agrees with the selected profile. Optional settings are outside that profile; they do not need to be enabled.', '',
+        '| Setting | Status | What it does |', '|---|---|---|')
+    $settingCards = ''
+    $technicalRows = ''
+    foreach ($item in $states) {
+        $status = if (-not $item.Applicable) { 'Not available on this PC' }
+            elseif ($null -eq $item.IsApplied) { if ($item.CurrentValue -eq 'Requires Admin') { 'Could not verify - administrator access required' } else { 'Could not verify' } }
+            elseif (-not $item.InProfile) { if ($item.IsApplied) { 'Optional - currently matches' } else { 'Optional - not set' } }
+            elseif ($item.IsApplied) { 'Matches this profile' } else { 'Not set for this profile' }
+        # Avoid emitting multiple labels for optional settings.
+        if ($status -is [array]) { $status = $status[-1] }
+        $md += "| $(ConvertTo-WBReportMarkdown $item.Title) | $(ConvertTo-WBReportMarkdown $status) | $(ConvertTo-WBReportMarkdown $item.Description) |"
+        $settingCards += "<tr><td>$(Html $item.Title)</td><td>$(Html $status)</td><td>$(Html $item.Description)</td></tr>"
+        $technicalRows += "<tr><td>$(Html $item.Id)</td><td>$(Html $item.CurrentValue)</td><td>$(Html $item.TargetValue)</td></tr>"
+    }
+    $md += @('', '### Apps using the most memory', '', 'Larger memory use is not automatically a problem. Save your work before closing an app. These figures describe current app memory use, not guaranteed recoverable memory.', '', '| App | Memory in use |', '|---|---|')
+    $appRows = ''
+    foreach ($app in $apps) {
+        $md += "| $(ConvertTo-WBReportMarkdown $app.AppName) | $($app.MemoryMB) MB |"
+        $appRows += "<tr><td>$(Html $app.AppName)</td><td>$($app.MemoryMB) MB</td></tr>"
+    }
+    $md += @('', '### Values for support', '', '| Setting reference | Current value | Profile value |', '|---|---|---|')
+    foreach ($item in $states) { $md += "| $(ConvertTo-WBReportMarkdown $item.Id) | $(ConvertTo-WBReportMarkdown $item.CurrentValue) | $(ConvertTo-WBReportMarkdown $item.TargetValue) |" }
+    $stepsHtml = ($nextSteps | ForEach-Object { "<li>$(Html $_)</li>" }) -join ''
+    $findingsHtml = ($findings | ForEach-Object { "<p>$(Html $_)</p>" }) -join ''
     $html = @"
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>WinBreathe v2.0 Telemetry Report</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your WinBreathe computer report</title>
 <style>
-  body { background:#1e1e2e; color:#cdd6f4; font-family:'Segoe UI',sans-serif; margin:32px; }
-  h1, h2 { color:#89b4fa; margin-bottom:8px; }
-  .cards { display:flex; gap:16px; flex-wrap:wrap; margin:20px 0; }
-  .card { background:#181825; border:1px solid #313244; border-radius:8px; padding:16px 20px; min-width:200px; }
-  .card .label { color:#a6adc8; font-size:12px; text-transform:uppercase; }
-  .card .val { color:#a6e3a1; font-size:22px; font-weight:bold; margin-top:4px; }
-  table { width:100%; border-collapse:collapse; background:#181825; border-radius:8px; overflow:hidden; margin-top:12px; }
-  th { background:#313244; color:#89b4fa; text-align:left; padding:10px 12px; font-size:13px; }
-  td { padding:9px 12px; border-bottom:1px solid #313244; font-size:13px; }
-  code { background:#313244; padding:2px 6px; border-radius:4px; color:#94e2d5; }
-</style>
-</head>
-<body>
-  <h1>WinBreathe v2.0 &mdash; System Optimization &amp; Drift Report</h1>
-  <p style="color:#a6adc8">Generated: $stamp | OS: $($sys.OSCaption) (Build $($sys.OSBuild))</p>
-  <div class="cards">
-    <div class="card"><div class="label">RAM Usage</div><div class="val">$($sys.UsedRAMMB) / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)%)</div></div>
-    <div class="card"><div class="label">Available RAM</div><div class="val">$($sys.AvailRAMMB) MB</div></div>
-    <div class="card"><div class="label">System Disk</div><div class="val">$($sys.DiskMediaType) ($($sys.FreeDiskGB) GB Free)</div></div>
-    <div class="card"><div class="label">Active Tweaks</div><div class="val">$appliedCount / $totalCount</div></div>
-    <div class="card"><div class="label">Update Guard</div><div class="val">$($guard.State)</div></div>
-  </div>
-  <h2>Tweak Status &amp; Drift Verification ($ProfileName Profile)</h2>
-  <table>
-    <thead><tr><th>ID</th><th>Category</th><th>Tweak</th><th>Risk</th><th>Status</th><th>Current Value</th></tr></thead>
-    <tbody>$rowsHtml</tbody>
-  </table>
-  <h2>Top 10 Memory Consumers</h2>
-  <table>
-    <thead><tr><th>Application</th><th>Processes</th><th>Working Set (MB)</th><th>Safety Tier</th></tr></thead>
-    <tbody>$procHtml</tbody>
-  </table>
-</body>
-</html>
+body{margin:0;background:#f3f5f8;color:#243247;font:16px/1.6 'Segoe UI',sans-serif}main{max-width:960px;margin:auto;padding:32px 20px}h1{font-size:32px;line-height:1.2}h2{margin-top:32px}h3{font-size:17px;margin:0}.intro{color:#526278}.cards{display:flex;flex-wrap:wrap;gap:16px}.card,.setting,details,.advice{background:white;border:1px solid #dce2ea;border-radius:12px;padding:20px}.card{flex:1;min-width:200px}.card strong{display:block;font-size:21px}.setting{margin:12px 0}.setting p{margin:8px 0 0}.badge{font-size:14px;color:#245381;font-weight:600}table{width:100%;border-collapse:collapse;background:white}td,th{text-align:left;padding:12px;border-bottom:1px solid #dce2ea;overflow-wrap:anywhere}th{background:#e9eef5}.technical{margin-top:48px;padding-top:24px;border-top:3px solid #b6c8df}.narrative{max-width:760px}details{margin-top:40px;border-top:4px solid #b6c8df}details[open]>summary{margin-bottom:20px}.scroll{overflow-x:auto}footer{margin-top:28px;color:#526278;font-size:14px}@media print{body{background:white}main{padding:0}.setting{break-inside:avoid}.technical{break-before:page}}
+</style></head><body><main>
+<h1>Your computer report</h1><p class="intro">WinBreathe 2.1 &middot; $stamp &middot; $(Html $sys.OSCaption)</p>
+<!-- Technical readings are presented after the narrative. -->
+<!-- <div class="cards"><div class="card">Memory in use<strong>$usedGB / $totalGB GB</strong>$($sys.LoadPercent)% in use &middot; $freeGB GB available</div><div class="card">Storage space available<strong>$($sys.FreeDiskGB) GB</strong>On $(Html $sys.SystemDrive)</div><div class="card">Settings matching your profile<strong>$matching / $($recommended.Count)</strong>$(Html $ProfileName) profile &middot; available settings only</div></div> -->
+<section class="narrative"><h2>1. What is happening on your computer</h2>$findingsHtml
+<h2>What to do next</h2><div class="advice"><ol>$stepsHtml</ol><p><strong>Automatic reapply:</strong> $(Html $guardText) This is a preference, not a performance fault.</p></div>
+</section><section class="technical"><h2>2. Technical details</h2><p>The readings and settings below support the explanation above.</p><table><tbody><tr><th>Memory</th><td>$memoryText</td></tr><tr><th>Free storage</th><td>$($sys.FreeDiskGB) GB on $(Html $sys.SystemDrive)</td></tr><tr><th>Profile</th><td>$(Html $ProfileName): $matching / $($recommended.Count) settings match</td></tr><tr><th>Automatic reapply</th><td>$(Html $guardText)</td></tr></tbody></table><h2>Settings</h2><p>$(Html $settingsText) Matching means the current value agrees with this profile. Optional settings do not need to be enabled. Unavailable settings are excluded from the count above.</p><div class="scroll"><table><thead><tr><th>Setting</th><th>Status</th><th>Explanation</th></tr></thead><tbody>$settingCards</tbody></table></div>
+<h2>Apps using the most memory</h2><p>Larger memory use is not automatically a problem. Save your work before closing an app. These figures are current readings, not guaranteed recoverable memory.</p><table><thead><tr><th>App</th><th>Memory in use</th></tr></thead><tbody>$appRows</tbody></table>
+<h2>Values for support</h2><p>These values help troubleshoot settings; you do not need to interpret them to use this report.</p><div class="scroll"><table><thead><tr><th>Setting reference</th><th>Current value</th><th>Profile value</th></tr></thead><tbody>$technicalRows</tbody></table></div></section>
+<footer>This report records the current state only. Legacy Windows compatibility and performance remain experimental.</footer>
+</main></body></html>
 "@
-    Set-Content -Path $htmlPath -Value $html -Encoding UTF8 -Force
-    Write-WBLog "Exported telemetry reports to:`n  - $htmlPath`n  - $mdPath" "OK"
-
-    return [PSCustomObject]@{
-        MarkdownPath = $mdPath
-        HtmlPath     = $htmlPath
-    }
+    Set-Content -Path $mdPath -Value ($md -join "`r`n") -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -Path $htmlPath -Value $html -Encoding UTF8 -Force -ErrorAction Stop
+    Write-WBLog "Saved your computer report: $htmlPath" 'OK'
+    return [PSCustomObject]@{ MarkdownPath = $mdPath; HtmlPath = $htmlPath }
 }
+
 
 Export-ModuleMember -Function @(
     'Get-WBPaths',

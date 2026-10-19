@@ -2,6 +2,18 @@
 
 All notable changes to **WinBreathe** are documented in this file.
 
+## [2.1.0-preview] - 2026-10-19
+
+- Redesigned HTML and Markdown reports with plain-language summaries, next steps, setting explanations, and optional support details.
+
+- Added guarded legacy hardware detection and capability-based MMAgent snapshots/Undo.
+- Windows 7 Update Guard now reports unsupported instead of attempting missing commands.
+- Made legacy performance tuning and fixed-size pagefiles opt-in; corrected descriptions and unsupported savings claims.
+- Use the WMI automatic-pagefile property, not a fabricated registry switch.
+- Added temporary-file replacement for latest snapshots and isolated compatibility regression checks.
+- Corrected header overlap and renamed the action to Click Optimization.
+- Added source provenance manifests and prerelease acceptance gates. Legacy runtime/performance and crash-interruption behavior remain unverified.
+
 ## [2.0.0] - 2026-10-19
 
 ### Added
