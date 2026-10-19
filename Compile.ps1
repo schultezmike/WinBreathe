@@ -151,7 +151,7 @@ Copy-Item "$repoRoot\docs\*"   "$v2Stage\docs\" -Force
 Copy-Item "$repoRoot\README.md", "$repoRoot\LICENSE", "$repoRoot\CHANGELOG.md" $v2Stage -Force
 
 # Bind the package to the source inputs used in this invocation.
-$sourcePaths = @('src/WinBreathe.Engine.psm1', 'src/WinBreathe.ps1', 'src/WinBreathe.GUI.ps1', 'src/Launcher/Program.cs', 'src/Launcher/app.manifest', 'config/tweaks.json', 'Compile.ps1', 'tests/Compatibility.Tests.ps1', 'tests/Report.Tests.ps1')
+$sourcePaths = @('src/WinBreathe.Engine.psm1', 'src/WinBreathe.ps1', 'src/WinBreathe.GUI.ps1', 'src/Launcher/Program.cs', 'src/Launcher/app.manifest', 'config/tweaks.json', 'Compile.ps1', 'tests/Compatibility.Tests.ps1', 'tests/Report.Tests.ps1', 'tests/SnapshotFile.Tests.ps1')
 $sourceManifest = [ordered]@{
     Version = '2.1.0-preview'
     BuiltAtUTC = [DateTime]::UtcNow.ToString('o')

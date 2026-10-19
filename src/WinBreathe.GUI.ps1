@@ -967,7 +967,7 @@ function Get-CheckedTweakIds {
 
 $btnQuickOpt.Add_Click({
     $prof = [string]$cmbProfile.SelectedItem
-    Start-WBAsyncCommand -CliArguments "-Profile $prof" -BannerText "Running 1-Click Safe Optimization ($prof Profile)..."
+    Start-WBAsyncCommand -CliArguments "-Profile $prof" -BannerText "Running Click Optimization ($prof Profile)..."
 })
 
 $btnPreviewSel.Add_Click({

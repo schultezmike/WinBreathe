@@ -2,6 +2,12 @@
 
 Prepared for publication as a **prerelease**, not a claim of validated legacy performance.
 
+## Updated v2.1.0 downloads
+
+The replacement executable and portable package fix snapshot publication on Windows PowerShell 5.1 when `latest.json` already exists. The earlier build could fail with "The path is not of a legal form" and abort optimization. The corrected build passes an actual null backup path to .NET file replacement. A real-filesystem regression test verifies first creation, replacement, retained earlier backup, content hashes and temporary-file cleanup. The action log now uses "Click Optimization".
+
+Report and isolated compatibility suites also pass. A user-provided Windows 11 log shows successful snapshot creation and 17 successful setting operations, with the Widgets registry write denied. This is not a legacy-OS or performance benchmark.
+
 ## Requirements and coverage
 
 - x64 Windows; Windows PowerShell 5.1 and compatible .NET Framework must be installed. Windows 7 requires SP1 and WMF 5.1. Stock Windows 7/8.1 installations are not sufficient.

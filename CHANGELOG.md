@@ -4,6 +4,8 @@ All notable changes to **WinBreathe** are documented in this file.
 
 ## [2.1.0-preview] - 2026-10-19
 
+- Fixed Windows PowerShell 5.1 snapshot replacement when latest.json already exists; added a real-filesystem regression test.
+
 - Redesigned HTML and Markdown reports with plain-language summaries, next steps, setting explanations, and optional support details.
 
 - Added guarded legacy hardware detection and capability-based MMAgent snapshots/Undo.

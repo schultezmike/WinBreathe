@@ -1,10 +1,10 @@
 ﻿{
     "Version":  "2.1.0-preview",
-    "BuiltAtUTC":  "2026-10-19T15:51:46.4961101Z",
+    "BuiltAtUTC":  "2026-10-19T16:45:40.2683744Z",
     "Sources":  [
                     {
                         "Path":  "src/WinBreathe.Engine.psm1",
-                        "SHA256":  "a3b995781a2e4298ccd689658182ded74efae273c9f3e98aa74752079da7bbc4"
+                        "SHA256":  "eaef486b29690236dba8556276b8ba050f973b98e2cae555e97126dc948697a1"
                     },
                     {
                         "Path":  "src/WinBreathe.ps1",
@@ -12,7 +12,7 @@
                     },
                     {
                         "Path":  "src/WinBreathe.GUI.ps1",
-                        "SHA256":  "fd4eb614647228b619ee84c30ef2e1ad00869d507c2b2beb281c954fc8fbbf78"
+                        "SHA256":  "e47f4cb3ca7d0441c00bfc9d8fbe5026a7366dc73be3d6068b0fff7c56e3c8e3"
                     },
                     {
                         "Path":  "src/Launcher/Program.cs",
@@ -28,7 +28,7 @@
                     },
                     {
                         "Path":  "Compile.ps1",
-                        "SHA256":  "95a1dae7b1822da910db87b8aa26f7145fe664124ab979236628dbff40d226c2"
+                        "SHA256":  "1c9178d9047fca12457d53e7a4a72839414a1685c2d8bba38bb474a8c8c5d8b7"
                     },
                     {
                         "Path":  "tests/Compatibility.Tests.ps1",
@@ -37,6 +37,10 @@
                     {
                         "Path":  "tests/Report.Tests.ps1",
                         "SHA256":  "194f676899b7894e6ace7a79f8dd576241d5d370b0d4b8cca742eeb723c2ae9d"
+                    },
+                    {
+                        "Path":  "tests/SnapshotFile.Tests.ps1",
+                        "SHA256":  "c768fb7323e7139645face7919207e5ac175efa3ab15e3369e211113539f4931"
                     }
                 ]
 }

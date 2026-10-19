@@ -18,6 +18,7 @@ jobs:
         run: |
           .\tests\Compatibility.Tests.ps1
           .\tests\Report.Tests.ps1
+          .\tests\SnapshotFile.Tests.ps1
 
       - name: Validate PowerShell AST Syntax & Pure ASCII Encoding
         shell: powershell

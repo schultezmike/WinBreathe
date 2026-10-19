@@ -30,6 +30,7 @@ jobs:
             WinBreathe.exe
             releases/v1.1.0/*
             releases/v2.0.0/*
+            releases/v2.1.0/*
 
       - name: Publish GitHub Release on Tag Push
         if: startsWith(github.ref, 'refs/tags/v')

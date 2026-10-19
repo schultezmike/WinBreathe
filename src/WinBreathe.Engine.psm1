@@ -634,7 +634,9 @@ function New-WBSnapshot {
 
         Move-Item -Path $tmp -Destination $file -Force -ErrorAction Stop
         if (Test-Path $paths.LatestBackup) {
-            [System.IO.File]::Replace($latestTmp, $paths.LatestBackup, $null)
+            # Windows PowerShell 5.1 converts $null to an empty string for this
+            # .NET string argument. NullString passes a real null backup path.
+            [System.IO.File]::Replace($latestTmp, $paths.LatestBackup, [System.Management.Automation.Language.NullString]::Value)
         } else {
             [System.IO.File]::Move($latestTmp, $paths.LatestBackup)
         }
