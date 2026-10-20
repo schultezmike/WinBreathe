@@ -108,7 +108,8 @@ Copy-Item "$repoRoot\README.md", "$repoRoot\LICENSE", "$repoRoot\CHANGELOG.md", 
 # Bind the package to the source inputs used in this invocation.
 New-Item -ItemType Directory -Path (Join-Path $v2Stage 'tests') -Force | Out-Null
 Copy-Item (Join-Path $repoRoot 'tests/*.ps1') (Join-Path $v2Stage 'tests')
-$sourcePaths = @(Get-ChildItem -LiteralPath $v2Stage -Recurse -File | Where-Object Name -ne 'WinBreathe.exe' | ForEach-Object { $_.FullName.Substring($v2Stage.Length+1).Replace('\','/') } | Sort-Object)
+# Relative names do not depend on TEMP using an 8.3 or expanded directory name.
+$sourcePaths = @(Get-ChildItem -LiteralPath $v2Stage -Recurse -File -Name | Where-Object { $_ -ne 'WinBreathe.exe' } | ForEach-Object { $_.Replace('\','/') } | Sort-Object)
 $sourceManifest = [ordered]@{
     Version = '2.1.2-preview'
     RepositoryCommit = $sourceRevision
@@ -133,9 +134,9 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [IO.Compression.ZipFile]::Open($v2Zip, [IO.Compression.ZipArchiveMode]::Create)
 try {
-    foreach ($file in Get-ChildItem -LiteralPath $v2Stage -Recurse -File) {
-        $entryName = $file.FullName.Substring($v2Stage.Length+1).Replace('\','/')
-        [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, $entryName, [IO.Compression.CompressionLevel]::Optimal)
+    foreach ($relativeName in Get-ChildItem -LiteralPath $v2Stage -Recurse -File -Name) {
+        $entryName = $relativeName.Replace('\','/')
+        [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $v2Stage $relativeName), $entryName, [IO.Compression.CompressionLevel]::Optimal)
     }
 } finally {
     $zip.Dispose()

@@ -1,8 +1,8 @@
 ﻿{
     "Version":  "2.1.2-preview",
-    "RepositoryCommit":  "222c0687396f9b5ad539c7d97886323b7e00e61b",
+    "RepositoryCommit":  "7740f9c2845ca3b8c451cb23973abde8ea5175f2",
     "WorkingTreeDirty":  true,
-    "BuiltAtUTC":  "2026-10-20T08:52:27.4189590Z",
+    "BuiltAtUTC":  "2026-10-20T08:56:09.7861435Z",
     "Sources":  [
                     {
                         "Path":  "assets/banner.png",
@@ -26,11 +26,11 @@
                     },
                     {
                         "Path":  "CHANGELOG.md",
-                        "SHA256":  "154db873239169388fe1ce0332adbb33ac5cec4fbd453737254cac991f15b6d5"
+                        "SHA256":  "afccdc4224179cc479344d36eeff0450e9d9a39932d655fbe48fa4dc7ff25e3e"
                     },
                     {
                         "Path":  "Compile.ps1",
-                        "SHA256":  "328ce095a6cf6ae0e8e5abe39bb88294002f07a7317f84aac90bef045ff75ecb"
+                        "SHA256":  "c8ae954fb80da99309299930d637ad527e60afa6751207eeab55761adcf150ec"
                     },
                     {
                         "Path":  "config/tweaks.json",

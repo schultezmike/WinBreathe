@@ -9,6 +9,7 @@ All notable changes to **WinBreathe** are documented in this file.
 - Replaces outdated batch-menu claims and unmeasured memory-saving promises with descriptions of actual behavior.
 - Requires regression, catalog, build, launcher and package checks before release publication. Actions are pinned to immutable commits; only the publishing job can write releases.
 - Adds release notes, checksums and a source manifest. Retires previous v2 downloads while preserving version 1.1.0 and historical Git tags/source.
+- Fixes portable-package source paths when Windows uses a shortened temporary-folder name, as on GitHub's Windows runners.
 - Remains a preview: elevated Undo, Windows 7/8.1 runtime support and performance benefits have not been fully validated.
 
 ## [2.1.1-preview] - 2026-10-20 (local only; superseded)
