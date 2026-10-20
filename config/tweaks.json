@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "profiles": {
     "Conservative": {
-      "summary": "Only zero-impact tweaks. Nothing you use day-to-day changes behaviour.",
+      "summary": "Lower-impact browser and Windows settings. Review each change because background notifications and browser features can be affected.",
       "recommendedFor": "16 GB+ RAM or SSD systems that just want less background waste."
     },
     "Balanced": {
-      "summary": "Browser background trimming, telemetry off, SuperFetch/SysMain tuning, memory compression and HDD-aware paging.",
+      "summary": "Browser background settings, selected Windows policies and services, memory compression and HDD-only app pre-launch changes. Pagefile and SysMain changes remain opt-in.",
       "recommendedFor": "8-12 GB RAM laptops and desktops (the sweet spot)."
     },
     "Aggressive": {
-      "summary": "Everything in Balanced plus stricter background-app limits and visual effect/Aero trimming.",
+      "summary": "Balanced settings plus stricter background-app and visual preferences. Some notifications and device-sharing features can be affected.",
       "recommendedFor": "4-6 GB RAM systems or mechanical (HDD) drives under heavy load."
     }
   },
@@ -145,7 +145,7 @@
       "category": "Browser",
       "title": "Disable Edge Startup Boost",
       "description": "Stops Microsoft Edge from pre-loading itself at Windows sign-in and staying resident in RAM when no window is open.",
-      "impact": "Saves roughly 100-300 MB while Edge is closed. Edge's first launch takes about a second longer.",
+      "impact": "Prevents Edge from keeping a startup process ready. The first browser launch may take longer; memory effects depend on the workload.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -171,7 +171,7 @@
       "category": "Browser",
       "title": "Stop Edge running in the background",
       "description": "Edge normally keeps extensions and apps running after the last window closes. This makes Edge fully exit when you close it.",
-      "impact": "Frees all Edge memory when closed. Extensions that notify you in the background will not run while Edge is closed.",
+      "impact": "Disables background browser apps after Edge closes. Background extension notifications may stop; open tabs are left running.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -197,7 +197,7 @@
       "category": "Browser",
       "title": "Put idle Edge tabs to sleep",
       "description": "Enables Sleeping Tabs and sets how quickly inactive tabs release their memory (15 min Conservative, 5 min Balanced, 30 s Aggressive).",
-      "impact": "Large savings with many tabs open. A sleeping tab reloads when you click it.",
+      "impact": "Allows supported Edge versions to put idle tabs to sleep. Reactivation may reload content; memory effects vary by tab.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -234,7 +234,7 @@
       "category": "Browser",
       "title": "Enable Edge Efficiency Mode",
       "description": "Lets Edge throttle background tabs and reduce CPU and memory work when tabs are not visible.",
-      "impact": "Lower background CPU and memory churn. Background animations may run slower.",
+      "impact": "Enables the supported browser efficiency policy. Background activity may be limited; performance and memory effects vary.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -260,7 +260,7 @@
       "category": "Browser",
       "title": "Turn off the Edge sidebar",
       "description": "Removes the Edge sidebar and the standalone sidebar, each of which hosts extra web views (Copilot, Shopping, Tools).",
-      "impact": "Removes several hidden renderer processes. The sidebar button disappears from Edge.",
+      "impact": "Disables the supported Edge sidebar policy. Existing browser processes may need a restart before reflecting the change.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -291,7 +291,7 @@
       "category": "Browser",
       "title": "Turn off Copilot in Edge (Windows 11)",
       "description": "Disables the built-in Copilot integration and its page-context reader in Edge.",
-      "impact": "Removes the Copilot web view and its background work. Use copilot.microsoft.com in a tab if needed.",
+      "impact": "Disables the supported Edge Copilot policy. Existing browser processes may need a restart before reflecting the change.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -321,7 +321,7 @@
       "category": "Browser",
       "title": "Stop Edge pre-loading pages",
       "description": "Disables speculative pre-connecting and pre-rendering of links Edge thinks you might click next.",
-      "impact": "Fewer hidden renderer processes and less network use. Some links open a fraction of a second slower.",
+      "impact": "Stops supported page pre-loading. This may reduce background network activity; some navigation may take longer.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -346,7 +346,7 @@
       "category": "Browser",
       "title": "Turn off Edge shopping, recommendations and Math Solver",
       "description": "Disables the shopping assistant, in-browser recommendations and the Math Solver feature.",
-      "impact": "Less background scripting on every page you visit.",
+      "impact": "Requests disabling supported shopping and recommendation features. Available policies depend on the installed Edge version.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -383,7 +383,7 @@
       "category": "Browser",
       "title": "Cap the Edge disk cache at 256 MB",
       "description": "Limits how large Edge's on-disk cache can grow.",
-      "impact": "Less disk churn, especially on mechanical drives. Rarely visited sites may re-download assets.",
+      "impact": "Caps the supported browser disk-cache policy. More assets may need to be downloaded again; a smaller cache does not guarantee less disk activity.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -408,7 +408,7 @@
       "category": "Browser",
       "title": "Stop Chrome & Chromium running in the background",
       "description": "Makes Google Chrome, Brave and Chromium browsers fully exit when their last window is closed.",
-      "impact": "Frees all browser memory when closed. Works across all Windows versions.",
+      "impact": "Disables background mode in browsers that honor these policies. Background extension notifications may stop; open browser windows are left running.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -442,7 +442,7 @@
       "category": "Windows",
       "title": "Turn off Windows Widgets (Windows 11)",
       "description": "Disables the Windows 11 Widgets board (news, weather, stocks), which runs its own web view host in the background.",
-      "impact": "Typically saves 100-250 MB. The Widgets button disappears from the taskbar.",
+      "impact": "Requests disabling the Widgets board. Windows may deny the policy write. Memory effects depend on whether Widgets was active.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -466,7 +466,7 @@
       "category": "Windows",
       "title": "Remove Bing web results from Start search (Windows 10 / 11)",
       "description": "Start menu search shows only local apps, files and settings instead of also querying Bing.",
-      "impact": "Faster, lighter Start search with no network round-trip. Web results no longer appear in Start.",
+      "impact": "Requests local-only Start search results. Search behavior depends on the Windows version and policy support.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -503,7 +503,7 @@
       "category": "Windows",
       "title": "Turn off Game DVR background recording",
       "description": "Disables Xbox Game Bar background capture, which can keep recording buffers in memory.",
-      "impact": "Saves memory and GPU work. Game Bar clip recording stops working.",
+      "impact": "Disables background game recording. Recording features can be affected; resource savings depend on whether recording was active.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -815,7 +815,7 @@
       "category": "Memory",
       "title": "Enable memory compression (Windows 10 / 11)",
       "description": "Windows compresses rarely used memory pages in RAM instead of writing them to the page file on disk.",
-      "impact": "More effective RAM and fewer slow disk reads. This is the Windows 10/11 default; WinBreathe makes sure it was not turned off.",
+      "impact": "Allows Windows to compress memory pages using CPU time. Benefits depend on the workload; this does not increase installed physical RAM.",
       "risk": "Safe",
       "profiles": [
         "Conservative",
@@ -835,7 +835,7 @@
       "category": "Memory",
       "title": "Enable memory page combining (Windows 10 / 11)",
       "description": "Windows merges identical memory pages from different processes into a single shared copy.",
-      "impact": "Small RAM saving at negligible CPU cost.",
+      "impact": "Allows identical pages to share physical storage. The benefit and background CPU cost depend on the workload.",
       "risk": "Safe",
       "profiles": [
         "Balanced",
@@ -854,7 +854,7 @@
       "category": "Memory",
       "title": "Stop app pre-launch on mechanical drives (Windows 10 / 11)",
       "description": "Disables Application Pre-Launch, which speculatively loads Store apps into memory at boot. Only offered on HDD systems.",
-      "impact": "Quieter, faster boot on HDDs. Some Store apps open slightly slower the first time.",
+      "impact": "Disables preparatory app launch on HDD systems. This may reduce background activity but can delay the first app launch.",
       "risk": "Moderate",
       "profiles": [
         "Balanced",

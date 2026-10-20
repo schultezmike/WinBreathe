@@ -2,6 +2,25 @@
 
 All notable changes to **WinBreathe** are documented in this file.
 
+## [2.1.2-preview] - 2026-10-20
+
+- Publishes the security and reliability fixes developed in the local-only 2.1.1 preview, including the launcher startup fix, safe preview handling, protected snapshots, non-blocking output and readable failure summaries.
+- Updates the executable, window, console and exported report to show version 2.1.2 consistently.
+- Replaces outdated batch-menu claims and unmeasured memory-saving promises with descriptions of actual behavior.
+- Requires regression, catalog, build, launcher and package checks before release publication. Actions are pinned to immutable commits; only the publishing job can write releases.
+- Adds release notes, checksums and a source manifest. Retires previous v2 downloads while preserving version 1.1.0 and historical Git tags/source.
+- Remains a preview: elevated Undo, Windows 7/8.1 runtime support and performance benefits have not been fully validated.
+
+## [2.1.1-preview] - 2026-10-20 (local only; superseded)
+
+- Fixed preview bypasses, protected-process wildcard handling, GUI output blocking, child exit reporting and launcher argument quoting.
+- Use embedded-only runtimes and absolute PowerShell paths; elevated runtimes and new backups require protected ownership and permissions.
+- Validate Undo content and identity before changing settings; preserve raw registry value types and reject unreadable backups.
+- Disabled new SYSTEM Guard installs and generic factory reset pending trustworthy implementations.
+- Removed automatic host termination. Memory Check is read-only and does not touch open apps.
+- Fixed raw PowerShell progress XML in the GUI log while keeping real errors and exit codes. Partial runs now show warning summaries, explain denied access without changing permissions, and explicitly state when no immediate RAM reduction is observed.
+- Added security/launcher regression suites and a repeatable read-only memory diagnostic. See docs/AUDIT-2.1.1.md for limits and migration notes.
+
 ## [2.1.0-preview] - 2026-10-19
 
 - Fixed the GUI encoding validation failure; the compiler now enforces ASCII across source, tests and build script before packaging. Updated GitHub Actions to current releases.

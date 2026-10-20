@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.1.0)
+# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.1.2)
 # Features:
 #   - Custom GDI+ Circular RAM Gauge + Live 60-Point Memory History Chart
 #   - Per-Tweak Interactive Checklist with Profile Selector & Preview (-WhatIf)
@@ -25,7 +25,8 @@ $modulePath = Join-Path $scriptDir "WinBreathe.Engine.psm1"
 $cliScript  = Join-Path $scriptDir "WinBreathe.ps1"
 $assetsDir  = Join-Path $rootDir "assets"
 
-Import-Module $modulePath -Force
+Import-Module $modulePath -Force -ErrorAction Stop
+if (-not ('WBProcessOutput' -as [type])) { Add-Type -Path (Join-Path $scriptDir 'WinBreathe.ProcessOutput.cs') -ErrorAction Stop }
 
 # ------------------------------------------------------------------------------
 # Catppuccin Mocha Color Palette & GDI+ Resource Registry (WB-05 Leak Prevention)
@@ -77,7 +78,7 @@ $script:LastSnap = Get-WBMemorySnapshot
 # Main Form Setup
 # ------------------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "WinBreathe v2.1 - Universal Windows Memory & Latency Optimizer"
+$form.Text = "WinBreathe v2.1.2 - Universal Windows Memory & Latency Optimizer"
 $form.Size = New-Object System.Drawing.Size(1020, 720)
 $form.MinimumSize = New-Object System.Drawing.Size(960, 680)
 $form.StartPosition = "CenterScreen"
@@ -116,7 +117,7 @@ if (Test-Path $logoPath) {
 $headerPanel.Controls.Add($logoBox)
 
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "WinBreathe v2.1"
+$lblTitle.Text = "WinBreathe v2.1.2"
 $lblTitle.Font = $fTitle
 $lblTitle.ForeColor = $cBlue
 $lblTitle.Location = New-Object System.Drawing.Point(78, 10)
@@ -160,7 +161,7 @@ function New-WBButton {
 }
 
 $btnQuickOpt   = New-WBButton -Text "Click Optimization" -X 540 -Y 18 -W 148 -H 38 -BgColor $cBlue     -FgColor $cCrust
-$btnQuickFlush = New-WBButton -Text "Safe RAM Flush"   -X 698 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cTeal
+$btnQuickFlush = New-WBButton -Text "Memory Check"   -X 698 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cTeal
 $btnQuickRep   = New-WBButton -Text "Export Report"    -X 846 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cText
 $headerPanel.Controls.AddRange(@($btnQuickOpt, $btnQuickFlush, $btnQuickRep))
 
@@ -745,7 +746,7 @@ $guardCard.BackColor = $cMantle
 $tabStatus.Controls.Add($guardCard)
 
 $lblGuardTitle = New-Object System.Windows.Forms.Label
-$lblGuardTitle.Text = "WINDOWS UPDATE PERSISTENCE GUARD & SNAPSHOT ROLLBACK"
+$lblGuardTitle.Text = "BACKUPS & UNDO (ADMIN REQUIRED) | NEW GUARD INSTALLS DISABLED"
 $lblGuardTitle.Font = $fH2
 $lblGuardTitle.ForeColor = $cBlue
 $lblGuardTitle.Location = New-Object System.Drawing.Point(16, 12)
@@ -759,11 +760,13 @@ $lblGuardStatus.Location = New-Object System.Drawing.Point(16, 40)
 $lblGuardStatus.AutoSize = $true
 $guardCard.Controls.Add($lblGuardStatus)
 
-$btnInstGuard = New-WBButton -Text "Install Boot Guard"     -X 16  -Y 72 -W 170 -H 34 -BgColor $cTeal     -FgColor $cCrust
+$btnInstGuard = New-WBButton -Text "Guard Unavailable"     -X 16  -Y 72 -W 170 -H 34 -BgColor $cTeal     -FgColor $cCrust
 $btnRemGuard  = New-WBButton -Text "Remove Boot Guard"      -X 196 -Y 72 -W 170 -H 34 -BgColor $cSurface0 -FgColor $cText
 $btnTakeSnap  = New-WBButton -Text "Save Manual Snapshot"   -X 386 -Y 72 -W 175 -H 34 -BgColor $cSurface0 -FgColor $cBlue
 $btnUndoSnap  = New-WBButton -Text "Undo (Restore Backup)"  -X 571 -Y 72 -W 180 -H 34 -BgColor $cYellow   -FgColor $cCrust
-$btnResetDef  = New-WBButton -Text "Reset Stock Defaults"   -X 761 -Y 72 -W 168 -H 34 -BgColor $cPeach    -FgColor $cCrust
+$btnResetDef  = New-WBButton -Text "Reset Unavailable"   -X 761 -Y 72 -W 168 -H 34 -BgColor $cPeach    -FgColor $cCrust
+$btnInstGuard.Enabled = $false
+$btnResetDef.Enabled = $false
 $guardCard.Controls.AddRange(@($btnInstGuard, $btnRemGuard, $btnTakeSnap, $btnUndoSnap, $btnResetDef))
 
 $gridDrift = New-Object System.Windows.Forms.DataGridView
@@ -833,7 +836,7 @@ $helpBox.Font = $fBody
 $helpBox.ReadOnly = $true
 $helpBox.BorderStyle = "None"
 $helpBox.Text = @"
-WINBREATHE v2.1 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 | 8.1 | 10 | 11)
+WINBREATHE v2.1.2 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 | 8.1 | 10 | 11)
 
 1. AUTOMATIC OS & HARDWARE DETECTION
    - WinBreathe inspects your exact Windows build and storage type at launch and tailors tweaks:
@@ -849,9 +852,10 @@ WINBREATHE v2.1 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 | 8.1 | 10 | 11)
 
 3. TRUE SNAPSHOT UNDO vs. STOCK WINDOWS RESET
    - Before WinBreathe applies changes, it captures your exact current registry values, service startup types, MMAgent flags, and pagefile settings to:
-     %ProgramData%\WinBreathe\backups\latest.json
+     %ProgramFiles%\WinBreathe-State\<your SID>\latest.json (admin access required)
    - Clicking 'Undo (Restore Backup)' restores your exact prior state (including removing policy keys that did not exist before).
-   - Clicking 'Reset Stock Defaults' resets all settings to Windows factory out-of-the-box defaults.
+   - Generic factory reset and new boot guard installs are unavailable in this security patch.
+   - Memory Check never terminates apps. Older snapshots require manual review; they are not automatically restored.
 
 4. TIER-1 PROTECTED PROCESSES (NEVER TOUCHED)
    - WinBreathe never calls EmptyWorkingSet() (which forces active memory onto slow disks) and never terminates:
@@ -877,26 +881,32 @@ $tabHelp.Controls.Add($helpBox)
 # Runspace-Safe Non-Blocking CLI Runner (Solves B1, B2, B3, B4, WB-01)
 # ==============================================================================
 $script:ActiveProcess = $null
+$script:ProcessOutput = $null
 
 $procTimer = New-Object System.Windows.Forms.Timer
 $procTimer.Interval = 120
 $procTimer.Add_Tick({
     if ($null -eq $script:ActiveProcess) { return }
     try {
-        while (-not $script:ActiveProcess.StandardOutput.EndOfStream) {
-            $line = $script:ActiveProcess.StandardOutput.ReadLine()
+        for ($lineNumber = 0; $lineNumber -lt 200; $lineNumber++) {
+            $line = $script:ProcessOutput.ReadAvailable()
+            if ($null -eq $line) { break }
             if (-not [string]::IsNullOrWhiteSpace($line)) {
                 $col = "#cdd6f4"
-                if ($line -match "\[OK\]|APPLIED|Reclaimed") { $col = "#a6e3a1" }
-                elseif ($line -match "\[PREVIEW\]")           { $col = "#cba6f7" }
+                if ($line -match "\[ERROR\]")                { $col = "#f38ba8" }
                 elseif ($line -match "\[WARN\]")              { $col = "#f9e2af" }
-                elseif ($line -match "\[ERROR\]")             { $col = "#f38ba8" }
+                elseif ($line -match "\[PREVIEW\]")           { $col = "#cba6f7" }
+                elseif ($line -match "\[OK\]")                { $col = "#a6e3a1" }
                 elseif ($line -match "\[HEAD\]|===")          { $col = "#89b4fa" }
                 Write-GuiConsole $line $col
             }
         }
-        if ($script:ActiveProcess.HasExited) {
+        if ($script:ProcessOutput.Complete) {
             $procTimer.Stop()
+            $exitCode = $script:ActiveProcess.ExitCode
+            if ($exitCode -ne 0) { Write-GuiConsole "[ERROR] Task finished with errors (exit $exitCode). Review the lines above." '#f38ba8' }
+            $script:ProcessOutput.Dispose()
+            $script:ProcessOutput = $null
             $script:ActiveProcess.Dispose()
             $script:ActiveProcess = $null
             $btnQuickOpt.Enabled   = $true
@@ -936,20 +946,29 @@ function Start-WBAsyncCommand {
     $btnPreviewSel.Enabled = $false
     $btnApplySel.Enabled   = $false
 
-    # Merge stderr into stdout inside child PowerShell to prevent 4KB stderr pipe deadlock (WB-01)
+    # EncodedCommand can serialize progress to stderr as CLIXML. Suppress
+    # progress and request plain text; warnings/errors still reach the console.
     $escapedScript = $cliScript.Replace("'", "''")
-    $psCmd = "& '$escapedScript' $CliArguments *>&1 | ForEach-Object { `$_.ToString() }"
+    $psCmd = "`$ProgressPreference='SilentlyContinue'; `$global:LASTEXITCODE=0; & '$escapedScript' $CliArguments *>&1 | ForEach-Object { `$_.ToString() }; exit `$LASTEXITCODE"
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"$psCmd`""
+    $psi.FileName = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'WindowsPowerShell\v1.0\powershell.exe'
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($psCmd))
+    $psi.Arguments = "-NoProfile -NonInteractive -OutputFormat Text -ExecutionPolicy Bypass -EncodedCommand $encoded"
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError  = $false
+    $psi.RedirectStandardError  = $true
     $psi.CreateNoWindow = $true
 
-    $script:ActiveProcess = [System.Diagnostics.Process]::Start($psi)
-    $procTimer.Start()
+    try {
+        $script:ActiveProcess = [System.Diagnostics.Process]::Start($psi)
+        $script:ProcessOutput = New-Object WBProcessOutput($script:ActiveProcess)
+        $procTimer.Start()
+    } catch {
+        Write-GuiConsole "[ERROR] Could not start the task: $($_.Exception.Message)" '#f38ba8'
+        if ($null -ne $script:ActiveProcess) { $script:ActiveProcess.Dispose(); $script:ActiveProcess = $null }
+        $btnQuickOpt.Enabled = $true; $btnPreviewSel.Enabled = $true; $btnApplySel.Enabled = $true
+    }
 }
 
 # ==============================================================================
@@ -979,7 +998,7 @@ $btnPreviewSel.Add_Click({
     }
     $targetOS = Get-SelectedTargetOS
     $osArg = if (-not [string]::IsNullOrEmpty($targetOS)) { "-TargetOS $targetOS" } else { "" }
-    $idArg = ($ids | ForEach-Object { "'$_'" }) -join ","
+    $idArg = ($ids | ForEach-Object { "'$($_.Replace("'", "''"))'" }) -join ","
     Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg) $osArg -WhatIf" -BannerText "Previewing $($ids.Count) Selected Tweaks (-WhatIf Dry-Run for $($cmbOS.SelectedItem))..."
 })
 
@@ -991,12 +1010,12 @@ $btnApplySel.Add_Click({
         return
     }
     # Safety: Live apply strictly targets the host machine. Never pass simulated OS into live execution.
-    $idArg = ($ids | ForEach-Object { "'$_'" }) -join ","
+    $idArg = ($ids | ForEach-Object { "'$($_.Replace("'", "''"))'" }) -join ","
     Start-WBAsyncCommand -CliArguments "-Profile $prof -TweakIds @($idArg)" -BannerText "Applying $($ids.Count) Selected Tweaks to host system ($prof Profile)..."
 })
 
 $btnQuickFlush.Add_Click({
-    Start-WBAsyncCommand -CliArguments "-Flush" -BannerText "Flushing transient Search & Widget WebView2 hosts..."
+    Start-WBAsyncCommand -CliArguments "-Flush" -BannerText "Checking memory without closing apps..."
 })
 
 $btnQuickRep.Add_Click({
@@ -1074,10 +1093,18 @@ Refresh-StartupGrid
 Refresh-StatusTab
 Update-DashboardMetrics
 
-Write-GuiConsole "WinBreathe v2.1.0 initialized." "#89b4fa"
+Write-GuiConsole "WinBreathe v2.1.2 initialized." "#89b4fa"
 Write-GuiConsole "Detected: $($sysProfile.OSCaption) | $($sysProfile.TotalRAMMB) MB RAM | $($sysProfile.DiskModel) ($($sysProfile.DiskMediaType))" "#94e2d5"
 Write-GuiConsole "Recommended Profile: $($sysProfile.RecommendedProfile) | Tier-1 Protected Processes Active." "#a6e3a1"
 Write-GuiConsole "Tip: Use 'Optimize Tweaks' -> 'Preview Selected (-WhatIf)' to inspect changes before applying." "#cdd6f4"
+
+$form.Add_FormClosing({
+    param($sender, $eventArgs)
+    if ($null -ne $script:ActiveProcess) {
+        $eventArgs.Cancel = $true
+        Write-GuiConsole '[WARN] Wait for the running task to finish before closing this window.' '#f9e2af'
+    }
+})
 
 try {
     [void]$form.ShowDialog()
@@ -1087,9 +1114,7 @@ try {
     $procTimer.Stop()
     $procTimer.Dispose()
     if ($null -ne $script:ActiveProcess) {
-        try {
-            if (-not $script:ActiveProcess.HasExited) { $script:ActiveProcess.Kill() }
-        } catch {}
+        if ($null -ne $script:ProcessOutput) { $script:ProcessOutput.Dispose() }
         $script:ActiveProcess.Dispose()
     }
     foreach ($d in $script:GdiDisposables) {

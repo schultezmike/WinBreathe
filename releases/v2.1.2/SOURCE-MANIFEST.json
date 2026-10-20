@@ -1,0 +1,144 @@
+﻿{
+    "Version":  "2.1.2-preview",
+    "RepositoryCommit":  "222c0687396f9b5ad539c7d97886323b7e00e61b",
+    "WorkingTreeDirty":  true,
+    "BuiltAtUTC":  "2026-10-20T08:52:27.4189590Z",
+    "Sources":  [
+                    {
+                        "Path":  "assets/banner.png",
+                        "SHA256":  "a8bd19eb4ee963c96b7c6b4643eb3bb0a10caffed2cb0cb7958df58c2b622e8d"
+                    },
+                    {
+                        "Path":  "assets/feature-art.png",
+                        "SHA256":  "c68fc488f6558044cb59fa05b1f0d40458136e34a00f351371ee805afe9ad864"
+                    },
+                    {
+                        "Path":  "assets/icon.ico",
+                        "SHA256":  "9c0a9c2fc6ed9d35e673bab73b024ce660778aca4eb1a3f105770a4c7b1f72d5"
+                    },
+                    {
+                        "Path":  "assets/logo.png",
+                        "SHA256":  "02d8d034fe734a749d0d3658ed92fd9afba6007d2e3287d68d2f70c92596b791"
+                    },
+                    {
+                        "Path":  "assets/screenshot-dashboard.png",
+                        "SHA256":  "1fa40b2ef920cba37b1d80635743a4905a9ec6cab5da030750dca7a82ac3b0de"
+                    },
+                    {
+                        "Path":  "CHANGELOG.md",
+                        "SHA256":  "154db873239169388fe1ce0332adbb33ac5cec4fbd453737254cac991f15b6d5"
+                    },
+                    {
+                        "Path":  "Compile.ps1",
+                        "SHA256":  "328ce095a6cf6ae0e8e5abe39bb88294002f07a7317f84aac90bef045ff75ecb"
+                    },
+                    {
+                        "Path":  "config/tweaks.json",
+                        "SHA256":  "7225557206206ef4cd2f6c97e245dad606a60be8921fd414f7c51e4d08d773ea"
+                    },
+                    {
+                        "Path":  "docs/ARCHITECTURE.md",
+                        "SHA256":  "cfbcb13a49056dfaf492862d114ec5ab09bb44537b535984fe29cc5afc68a3a0"
+                    },
+                    {
+                        "Path":  "docs/AUDIT-2.1.1.md",
+                        "SHA256":  "14465c297202a2472fbff0476817f36318086b5b6dffa4db4149f608bcf24609"
+                    },
+                    {
+                        "Path":  "docs/FAQ.md",
+                        "SHA256":  "7b30a148e1b986fb40d2cf22b77f9d9183616bb6b5354b9d007d636685c653b4"
+                    },
+                    {
+                        "Path":  "docs/GITHUB_STRUCTURE_COMPARISON.md",
+                        "SHA256":  "231972a0cab7dc271e8266ba8d399e89b5992ab6b7f6a141bc02604ea6c6632b"
+                    },
+                    {
+                        "Path":  "docs/RELEASE-2.1.0.md",
+                        "SHA256":  "776f04d9553bb7eea9c63a343a95d53ef3a78bd02a3afa7e5b4472daa16c0fa6"
+                    },
+                    {
+                        "Path":  "docs/RELEASE-2.1.2.md",
+                        "SHA256":  "b9ca4b904354f6a585af4dd5ba0704f0af1cbe637ec909f47894d7284a1787a4"
+                    },
+                    {
+                        "Path":  "docs/TWEAKS.md",
+                        "SHA256":  "242911ca4903c5d2133f89c4dc9637740fbb984641c2d61783bb5cfde4232f2c"
+                    },
+                    {
+                        "Path":  "LICENSE",
+                        "SHA256":  "f5994178876bfae0aa675db5ed8bf81e1af81f195ccf8e0a85d92f28f8d485be"
+                    },
+                    {
+                        "Path":  "README.md",
+                        "SHA256":  "8485b00cfa2786ac2e2bc91c4a06e5712a6af4d13ca347b86c81c4e7755819ef"
+                    },
+                    {
+                        "Path":  "scripts/Memory-Diagnostic.ps1",
+                        "SHA256":  "deda8f775c49731c5841d124d100c04caee5979c67ca347775ed2827a4340653"
+                    },
+                    {
+                        "Path":  "scripts/Test-Release.ps1",
+                        "SHA256":  "8078a64377c08e317e10f3fd74b0a9472fca4938971fc0309e0eebecab295ea3"
+                    },
+                    {
+                        "Path":  "SECURITY.md",
+                        "SHA256":  "359d6517c1eac1dec05d77b889008ea4ed15553454137f1d8a9bfe37b6e3fc42"
+                    },
+                    {
+                        "Path":  "src/Launcher/app.manifest",
+                        "SHA256":  "cb67595f10f056be063af38bd8383733e87b3082648bd56c37a9771363e81ef5"
+                    },
+                    {
+                        "Path":  "src/Launcher/Program.cs",
+                        "SHA256":  "b407ea0776e25fd2903ec2ebc6bf586dff26f9e43004379c1cb19fad76da1705"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.Engine.psm1",
+                        "SHA256":  "1714b7f343941c80cd27c835efc238027470b979815ee3c9c52a84e667b96317"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.GUI.ps1",
+                        "SHA256":  "d338a68745d0412e00c3f543ef5ade16fa58f825a629a5b785ea0fd24e8af5ff"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.ProcessOutput.cs",
+                        "SHA256":  "65ee9446fffee338cf246ce11fdff81c725553b5ab240678f21d17a920af734e"
+                    },
+                    {
+                        "Path":  "src/WinBreathe.ps1",
+                        "SHA256":  "b3f7757bee714ae281ad82285aafa034fd1f95470a86e037dba7b11659d18c62"
+                    },
+                    {
+                        "Path":  "tests/Catalog.Tests.ps1",
+                        "SHA256":  "b87a9ac29f44ae228152b0a72a606d49cf2e03077a514f18eb6f876afffcd5bc"
+                    },
+                    {
+                        "Path":  "tests/Compatibility.Tests.ps1",
+                        "SHA256":  "5bc09ab159ad282e4c8a3baace1e50649407afc01ab76bd8355d87cc3b093137"
+                    },
+                    {
+                        "Path":  "tests/Launcher.Tests.ps1",
+                        "SHA256":  "9710802a68ef787a8d6b512e10ea4256ea90036c6998b5419f2618e71b79735f"
+                    },
+                    {
+                        "Path":  "tests/Package.Tests.ps1",
+                        "SHA256":  "7d2bbb447f564b71482204ab4dd9c7c873eec0342a573bbcbd413c71cc50774f"
+                    },
+                    {
+                        "Path":  "tests/Report.Tests.ps1",
+                        "SHA256":  "194f676899b7894e6ace7a79f8dd576241d5d370b0d4b8cca742eeb723c2ae9d"
+                    },
+                    {
+                        "Path":  "tests/Security.Tests.ps1",
+                        "SHA256":  "0482f72263030aefaf65bfa065326c89140b2910da08dd1fdc5e838aa562186c"
+                    },
+                    {
+                        "Path":  "tests/SnapshotFile.Tests.ps1",
+                        "SHA256":  "a917d57f15cc4c54711e0eef31a9ad51300cab169e5b357052e1a0f10d4c45ab"
+                    },
+                    {
+                        "Path":  "WinBreathe.bat",
+                        "SHA256":  "0bb6c6c4a7812395da9efc44103360a9b3fe81055bc15752946a235cfd6e22c2"
+                    }
+                ]
+}

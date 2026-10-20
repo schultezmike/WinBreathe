@@ -9,6 +9,12 @@ $fn=$ast.Find({param($n)$n -is [System.Management.Automation.Language.FunctionDe
 . ([scriptblock]::Create($fn.Extent.Text))
 $testDir=Join-Path $PSScriptRoot ('snapshot-fixture-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testDir | Out-Null
+function Enter-WBOperation { $null }
+function Exit-WBOperation { param($Lease) }
+function Get-Service { @() }
+function Initialize-WBBackupStore { param($Path) }
+function Assert-WBProtectedPath { param($Path) }
+function Assert-WBSnapshot { param($Snapshot) }
 function Get-WBPaths { [pscustomobject]@{BackupDir=$testDir;LatestBackup=(Join-Path $testDir 'latest.json')} }
 function Get-WBTweakCatalog { [pscustomobject]@{tweaks=@();optionalServices=@()} }
 function Get-WBSystemProfile { [pscustomobject]@{SystemDrive='C:'} }

@@ -3,39 +3,57 @@ name: Build Standalone Executables & Release Packages
 on:
   push:
     branches: [ main, master ]
-    tags: [ 'v*' ]
+    tags: [ 'v2.1.2' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-exe:
     runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run regression, catalog, compiler, launcher and package checks
+        shell: powershell
+        run: .\scripts\Test-Release.ps1 -Build
+      - name: Upload tested release files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: WinBreathe-v2.1.2
+          if-no-files-found: error
+          path: releases/v2.1.2/*
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/tags/v2.1.2'
+    needs: build-exe
+    runs-on: windows-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7.0.1
-
-      - name: Run Compiler Pipeline (Compile.ps1)
-        shell: powershell
-        run: |
-          .\Compile.ps1
-
-      - name: Upload Compiled Executables & Portable Packages
-        uses: actions/upload-artifact@v7.0.2
+      - name: Download the tested build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: WinBreathe-Release-Binaries
-          path: |
-            WinBreathe.exe
-            releases/v1.1.0/*
-            releases/v2.0.0/*
-            releases/v2.1.0/*
-
-      - name: Publish GitHub Release on Tag Push
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3.0.3
+          name: WinBreathe-v2.1.2
+          path: release
+      - name: Publish tested v2.1.2 preview
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          generate_release_notes: true
+          name: WinBreathe v2.1.2 - Security and reliability update (preview)
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true
+          body_path: release/RELEASE-NOTES.md
           files: |
-            releases/${{ github.ref_name }}/*
+            release/WinBreathe-v2.1.2-x64.exe
+            release/WinBreathe-v2.1.2-Portable.zip
+            release/SHA256SUMS.txt
+            release/SOURCE-MANIFEST.json
+            release/RELEASE-NOTES.md

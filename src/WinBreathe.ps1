@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.1.0)
+# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.1.2)
 # Usage Examples:
 #   .\src\WinBreathe.ps1 -GUI
 #   .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
@@ -33,7 +33,7 @@ param(
     [switch]$Help
 )
 
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 $modulePath = Join-Path $PSScriptRoot "WinBreathe.Engine.psm1"
 Import-Module $modulePath -Force
 
@@ -42,7 +42,7 @@ if ($PreviewOS) {
     $WhatIf = $true
 }
 
-if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf) {
+if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf -and -not $Status) {
     Write-Host "[WARN] Simulation TargetOS '$TargetOS' ignored for live execution. Live optimization strictly targets the host operating system." -ForegroundColor Yellow
     $TargetOS = ""
 }
@@ -50,7 +50,7 @@ if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf) {
 if ($Help) {
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.1 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.1.2 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
     Write-Host "  OS Coverage: Windows 11 | Windows 10 | Windows 8.1 | Windows 7" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  -GUI                              Launch the 6-tab graphical dashboard"
@@ -59,17 +59,26 @@ if ($Help) {
     Write-Host "  -TweakIds <id1,id2...>            Apply only specific tweak IDs from config/tweaks.json"
     Write-Host "  -WhatIf                           Preview every change without modifying the system"
     Write-Host "  -Status                           Check live tweak drift & hardware telemetry"
-    Write-Host "  -Flush                            Safely flush transient Search/Widget WebView2 hosts"
+    Write-Host "  -Flush                            Read memory without closing apps (legacy alias)"
     Write-Host "  -Snapshot                         Save current registry/service/pagefile state to JSON"
     Write-Host "  -Undo                             Restore exact pre-optimization state from latest snapshot"
-    Write-Host "  -ResetDefaults                    Reset all tweaks back to stock Windows defaults"
-    Write-Host "  -InstallGuard                     Install hardened SYSTEM boot task (Update Guard)"
+    Write-Host "  -ResetDefaults                    Disabled: use a valid protected Undo snapshot instead"
+    Write-Host "  -InstallGuard                     Disabled pending secure installation support"
     Write-Host "  -RemoveGuard                      Remove the Update Guard scheduled task"
     Write-Host "  -ExportReport                     Generate HTML and Markdown telemetry/drift reports"
     Write-Host ""
     exit 0
 }
 
+# WhatIf is global: alternate action switches must never bypass preview mode.
+if ($WhatIf -and ($GUI -or $Snapshot -or $Undo -or $ResetDefaults -or $Flush -or $InstallGuard -or $RemoveGuard -or $ExportReport)) {
+    Write-Host '[PREVIEW] The requested action was not executed. No settings or processes were changed.'
+    exit 0
+}
+if (@(@($GUI,$Snapshot,$Undo,$ResetDefaults,$Status,$Flush,$InstallGuard,$RemoveGuard,$ExportReport) | Where-Object { $_ }).Count -gt 1) {
+    Write-Error 'Choose one action at a time.'
+    exit 2
+}
 if ($GUI) {
     $guiPath = Join-Path $PSScriptRoot "WinBreathe.GUI.ps1"
     & $guiPath
@@ -81,7 +90,7 @@ if ($Status) {
     $guard = Get-WBUpdateGuardStatus
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.1.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.1.2 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  OS         : $($sys.OSCaption) (Build $($sys.OSBuild))"
     Write-Host "  RAM Usage  : $($sys.UsedRAMMB) MB / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)% Load | $($sys.AvailRAMMB) MB Free)"
@@ -110,39 +119,48 @@ if ($Status) {
 }
 
 if ($Snapshot) {
-    New-WBSnapshot -Label "Manual CLI Snapshot" | Out-Null
+    $result = New-WBSnapshot -Label "Manual CLI Snapshot"
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($Undo) {
-    Restore-WBSnapshot | Out-Null
+    $result = Restore-WBSnapshot
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($ResetDefaults) {
-    Restore-WBStockDefaults | Out-Null
+    $result = Restore-WBStockDefaults
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($Flush) {
-    Invoke-WBSafeFlush | Out-Null
+    $result = Invoke-WBSafeFlush
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($InstallGuard) {
-    Install-WBUpdateGuard -ProfileName $Profile | Out-Null
+    $result = Install-WBUpdateGuard -ProfileName $Profile
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($RemoveGuard) {
-    Uninstall-WBUpdateGuard | Out-Null
+    $result = Uninstall-WBUpdateGuard
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 if ($ExportReport) {
-    Export-WBReport -ProfileName $Profile | Out-Null
+    $result = Export-WBReport -ProfileName $Profile
+    if (-not $result) { exit 1 }
     exit 0
 }
 
 # Default action: Run optimization (or preview if -WhatIf)
-Invoke-WBTweaks -ProfileName $Profile -TweakIds $TweakIds -TargetOS $TargetOS -WhatIf:$WhatIf -SkipSnapshot:$SkipSnapshot -SkipFlush:$SkipFlush | Out-Null
+$result = Invoke-WBTweaks -ProfileName $Profile -TweakIds $TweakIds -TargetOS $TargetOS -WhatIf:$WhatIf -SkipSnapshot:$SkipSnapshot -SkipFlush:$SkipFlush
+if (-not $result -or $result.FailedCount -gt 0 -or ($result.PSObject.Properties.Name -contains 'Aborted' -and $result.Aborted)) { exit 1 }
+exit 0

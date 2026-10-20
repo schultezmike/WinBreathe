@@ -1,111 +1,52 @@
-<div align="center">
+# WinBreathe 2.1.2 preview
 
-<img src="assets/banner.png" alt="WinBreathe - Universal Windows Memory & Latency Optimizer" width="100%" />
+A native Windows memory monitor and settings utility. Version 2.1.2 fixes reliability and security problems in earlier v2 builds. It does not promise a particular RAM percentage or performance improvement.
 
-# WinBreathe
+## Current package
 
-**Adaptive Windows Memory & Latency Optimizer for Windows 11, 10, 8.1 & 7 SP1**  
-*Tailored for 4–16 GB RAM PCs, Mechanical HDDs, Laptops & Developer Stacks*
+[Download v2.1.2](https://github.com/schultezmike/WinBreathe/releases/tag/v2.1.2) or browse the [package files](releases/v2.1.2/). The release includes an x64 executable, portable ZIP, SHA-256 checksums, release notes and source manifest.
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010%20%7C%208.1%20%7C%207%20SP1-0078D6?logo=windows)](https://microsoft.com)
-[![Latest Release](https://img.shields.io/badge/Release-v2.1.0-89b4fa.svg)](releases/v2.1.0/)
-[![Executable](https://img.shields.io/badge/Binary-Standalone%20x64%20.EXE-a6e3a1.svg)](WinBreathe.exe)
-[![License](https://img.shields.io/badge/License-MIT-a6e3a1.svg)](LICENSE)
-[![Security](https://img.shields.io/badge/Security-SID%20Hardened%20%26%20True%20Undo-94e2d5.svg)](SECURITY.md)
+Earlier v2 downloads are retired because they lack these fixes. Their Git tags and source history are retained. The local-only v2.1.1 preview is superseded. [Version 1.1.0](https://github.com/schultezmike/WinBreathe/releases/tag/v1.1.0) remains available as a legacy release; keeping it available does not certify its security or compatibility.
 
-[Downloads (v2.1.0)](#-releases--downloads) • [What's New in v2.1](#-whats-new-in-v21) • [Quick Start](#-quick-start) • [Architecture](docs/ARCHITECTURE.md) • [Tweak Catalog](docs/TWEAKS.md) • [Release Gates](docs/RELEASE-2.1.0.md) • [FAQ](docs/FAQ.md)
+## What's new in 2.1.2
 
-</div>
+- Profile application leaves running apps and Windows hosts open. **Memory Check** is read-only; the legacy `-Flush` alias no longer kills processes.
+- `-WhatIf` blocks all alternate actions; failures return error codes. The GUI reads task output without waiting on pipes and no longer displays raw PowerShell progress XML.
+- Executables use embedded source and an absolute Windows PowerShell path. Elevated runtimes and backups require protected ownership and permissions.
+- Undo validates snapshot identity and targets before making changes. New protected backups require administrator access; older backups are preserved for manual review.
+- New Update Guard installs and generic factory reset are disabled. Existing Guard tasks can be removed explicitly.
+- Fixed-size paging and legacy performance tuning remain opt-in. The patch does not purge standby memory or trim app working sets.
+- Runs with failed tweaks show warning summaries. Access denial is explained without changing Windows permissions. Memory readings explicitly state when there was no immediate reduction.
+- The release workflow tests the catalog, regressions, launcher, archive contents and checksums before publishing. Actions use fixed commit references and release-writing permission is isolated to the publishing job.
 
----
+See [the release notes](docs/RELEASE-2.1.2.md), [changelog](CHANGELOG.md) and [audit and RAM investigation](docs/AUDIT-2.1.1.md) for details.
 
-<div align="center">
-  <img src="assets/screenshot-dashboard.png" alt="WinBreathe Live Graphical Dashboard" width="95%" style="border-radius:8px; border:1px solid #313244;" />
-  <p><em>Native 6-Tab WinForms Dark Dashboard with Circular RAM Gauge and 60-point Memory History Chart (< 18 MB footprint).</em></p>
-</div>
+## Requirements
 
----
+Windows x64, Windows PowerShell 5.1 and a compatible .NET Framework runtime. Windows 7 requires SP1 and WMF 5.1. Windows 7/8.1 support remains experimental and unverified on those operating systems. Administrator access is needed to change machine settings and create or restore protected snapshots. Monitoring and reports can run without elevation.
 
-## 🚀 What's New in v2.1
+## Usage
 
-WinBreathe v2.1 expands beyond Windows 11 and 10 to provide **adaptive operating system detection and tailor-made tuning** for **Windows 7 SP1** and **Windows 8.1**:
-
-1. **Automatic OS & Hardware Telemetry at Startup**:
-   - WinBreathe inspects your host machine's exact Windows version, build number, RAM capacity, and drive media type (SSD vs. HDD) at launch.
-   - Automatically recommends the appropriate profile and tailors available tweaks specifically to that platform.
-   - Simulated OS preview dropdown (`Windows 7`, `Windows 8.1`, `Windows 10`, `Windows 11`) lets you inspect tailor-made settings for other Windows versions directly from the UI without modifying host settings.
-2. **Dedicated Windows 7 SP1 & Windows 8.1 Catalog Support**:
-   - **SuperFetch & Prefetcher Boot-Only Tuning**: Eliminates 100% active disk thrashing on mechanical HDDs while keeping boot acceleration intact. Automatically skipped on SSDs.
-   - **NTFS Last-Access Timestamp Write Churn**: Disables repetitive background metadata writes to disk.
-   - **Legacy Service Optimization**: Sets Application Experience (`AeLookupSvc`), Program Compatibility Assistant (`PcaSvc`), and Windows Error Reporting (`WerSvc`) to manual/disabled.
-   - **DWM Aero Glass RAM Trimming**: Toggles memory-heavy Aero Peek and persistent thumbnail caching on Windows 7.
-3. **Redesigned Narrative-First Reports (HTML & Markdown)**:
-   - Natural language summary explaining host memory pressure, largest running applications, and specific next steps.
-   - Strict separation of confirmed setting differences, settings requiring administrator privileges, and settings unsupported on that operating system.
-   - High-contrast, responsive light-themed HTML document format with zero text overlap.
-4. **Hardened True Snapshot & Rollback**:
-   - Atomic staged snapshot publishing with temporary files prevents corrupted state saves.
-   - Strict-mode verified undo engine: catches and reports access-denied registry key deletions and restores original value kinds accurately.
-   - Live optimization strictly enforces host OS boundaries regardless of simulation previews.
-
----
-
-## 📦 Releases & Downloads
-
-| Release | Architecture | Files | Notes |
-|---|---|---|---|
-| **[v2.1.0](releases/v2.1.0/)** (Latest) | x64 Standalone | [`WinBreathe-v2.1.0-x64.exe`](releases/v2.1.0/WinBreathe-v2.1.0-x64.exe), [`WinBreathe-v2.1.0-Portable.zip`](releases/v2.1.0/WinBreathe-v2.1.0-Portable.zip) | Full universal release: Windows 11, 10, 8.1, 7 SP1 with narrative report export |
-| **[v2.0.0](releases/v2.0.0/)** | x64 Standalone | [`WinBreathe-v2.0.0-x64.exe`](releases/v2.0.0/WinBreathe-v2.0.0-x64.exe), [`WinBreathe-v2.0.0-Portable.zip`](releases/v2.0.0/WinBreathe-v2.0.0-Portable.zip) | 6-Tab GUI, 24-tweak catalog, snapshot undo |
-| **[v1.1.0](releases/v1.1.0/)** | x64 / Script | [`WinBreathe-v1.1.0-x64.exe`](releases/v1.1.0/WinBreathe-v1.1.0-x64.exe), [`WinBreathe-v1.1.0-Portable.zip`](releases/v1.1.0/WinBreathe-v1.1.0-Portable.zip) | Initial baseline release |
-
-All release archives include cryptographic SHA-256 manifests (`SHA256SUMS.txt`).
-
----
-
-## 💻 Requirements
-
-- **Operating System**: Windows 11, Windows 10, Windows 8.1, or Windows 7 SP1 (64-bit).
-  - *Windows 7 / 8.1 Notice*: Requires Windows Management Framework (WMF) 5.1 and .NET Framework 4.8.
-- **Privileges**: Administrator privileges required to apply registry optimizations and service changes; telemetry, drift inspection, report export, and `-WhatIf` previews can run unprivileged.
-
----
-
-## ⚡ Quick Start
-
-### Graphical User Interface (GUI)
-Double-click `WinBreathe.exe` (or run `.\WinBreathe.bat` as Administrator). The GUI starts in under 0.8 seconds:
-- **Dashboard**: View circular RAM gauge, 60-sample memory graph, and running processes.
-- **Optimize Tweaks**: Inspect tailor-made tweaks for your detected OS (or select another OS from the dropdown to preview options). Click **Preview Selected (-WhatIf)** to test without touching your system.
-- **Export Report**: Click **Export Report** in the top navigation bar to generate an instant HTML and Markdown audit.
-
-### Command Line Interface (CLI)
 ```powershell
-# 1. Preview changes without modifying anything (-WhatIf Dry Run)
-.\src\WinBreathe.ps1 -Profile Balanced -WhatIf
-
-# 2. Preview tailor-made options for Windows 7 or 8.1
-.\src\WinBreathe.ps1 -PreviewOS Win7
-
-# 3. Check live drift status and hardware telemetry
+# Inspect only
 .\src\WinBreathe.ps1 -Status
-
-# 4. Generate system telemetry & recommendations report
+.\src\WinBreathe.ps1 -Profile Balanced -WhatIf
+# Read memory without terminating apps
+.\src\WinBreathe.ps1 -Flush
+# Export a report
 .\src\WinBreathe.ps1 -ExportReport
-
-# 5. Restore previous state from snapshot backup
-.\src\WinBreathe.ps1 -Undo
+# Launch the source GUI (trust this source folder before running elevated)
+.\src\WinBreathe.ps1 -GUI
 ```
 
----
+Apply only settings you have reviewed. A backup is mandatory. Some changes require an app restart, sign-out or reboot; they do not necessarily reduce current RAM use.
 
-## 🛡️ Safety & Reliability
+## Validation
 
-- **Tier-1 Protected Processes**: WinBreathe never terminates or empties the working sets of critical processes (Windows Explorer, DWM, Defender, VPN tunnels, and developer IDEs/AI runtimes).
-- **True Snapshot Undo**: Takes a full pre-optimization state snapshot before applying changes. Roll back anytime with `.\src\WinBreathe.ps1 -Undo`.
-- **Verified Regression Suite**: Validated through isolated compatibility and report test suites (`tests/Compatibility.Tests.ps1`, `tests/Report.Tests.ps1`).
+```powershell
+.\scripts\Test-Release.ps1 -Build
+```
 
----
+Tests use synthetic state, disposable files and non-mutating preview invocations. A user-supplied Windows 11 run reported a saved snapshot and 17 applied tweaks, with the Widgets write denied; it did not demonstrate immediate RAM savings. Elevated Undo, full GUI operation, legacy OS execution and power-loss behavior still need disposable-machine acceptance tests. Historical docs and screenshots may show older features and defaults. This remains a preview while those checks are incomplete.
 
-## 📄 License
-
-Licensed under the [MIT License](LICENSE).
+Licensed under MIT. Security reports: use GitHub private security advisories.

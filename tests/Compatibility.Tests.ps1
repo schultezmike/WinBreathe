@@ -21,6 +21,12 @@ foreach ($os in @('Win7', 'Win8', 'Win10', 'Win11')) {
         Assert (-not ($selected.id -contains 'mem.pagefile')) "Pagefile remains opt-in for $os/$profile"
     }
 }
+function Enter-WBOperation { $null }
+function Exit-WBOperation { param($Lease) }
+function Get-Service { @() }
+function Initialize-WBBackupStore { param($Path) }
+function Assert-WBProtectedPath { param($Path) }
+function Assert-WBSnapshot { param($Snapshot) }
 function Get-WBPaths { [pscustomobject]@{ BackupDir = 'MOCK'; LatestBackup = 'MOCK/latest.json' } }
 function Get-WBTweakCatalog { [pscustomobject]@{ tweaks = @(); optionalServices = @() } }
 function Get-WBSystemProfile { [pscustomobject]@{ SystemDrive = 'C:' } }

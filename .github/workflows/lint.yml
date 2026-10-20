@@ -6,30 +6,18 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.1
-
-      - name: Isolated compatibility regressions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate source, catalog and isolated regressions
         shell: powershell
-        run: |
-          .\tests\Compatibility.Tests.ps1
-          .\tests\Report.Tests.ps1
-          .\tests\SnapshotFile.Tests.ps1
-
-      - name: Validate PowerShell syntax and encoding
-        shell: powershell
-        run: .\Compile.ps1 -VerifyOnly
-
-      - name: Validate tweaks.json Schema & Dry-Run Preview
-        shell: powershell
-        run: |
-          $catalog = Get-Content .\config\tweaks.json -Raw | ConvertFrom-Json
-          if ($catalog.tweaks.Count -lt 20) {
-              throw "Expected at least 20 tweaks in config/tweaks.json"
-          }
-          .\src\WinBreathe.ps1 -Status
-          .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
+        run: .\scripts\Test-Release.ps1
