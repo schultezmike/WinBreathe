@@ -1,6 +1,6 @@
 ﻿{
     "Version":  "2.1.0-preview",
-    "BuiltAtUTC":  "2026-10-19T16:45:40.2683744Z",
+    "BuiltAtUTC":  "2026-10-20T03:53:25.8309823Z",
     "Sources":  [
                     {
                         "Path":  "src/WinBreathe.Engine.psm1",
@@ -12,7 +12,7 @@
                     },
                     {
                         "Path":  "src/WinBreathe.GUI.ps1",
-                        "SHA256":  "e47f4cb3ca7d0441c00bfc9d8fbe5026a7366dc73be3d6068b0fff7c56e3c8e3"
+                        "SHA256":  "8d991719b0f663a69f1a9d9d34e14309049476dea51d9307b37718be6b4b7f4f"
                     },
                     {
                         "Path":  "src/Launcher/Program.cs",
@@ -28,7 +28,7 @@
                     },
                     {
                         "Path":  "Compile.ps1",
-                        "SHA256":  "1c9178d9047fca12457d53e7a4a72839414a1685c2d8bba38bb474a8c8c5d8b7"
+                        "SHA256":  "046979c16ec599601297308ed2189105541a93bb17efec0940a5a8e2981db677"
                     },
                     {
                         "Path":  "tests/Compatibility.Tests.ps1",

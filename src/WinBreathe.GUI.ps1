@@ -833,7 +833,7 @@ $helpBox.Font = $fBody
 $helpBox.ReadOnly = $true
 $helpBox.BorderStyle = "None"
 $helpBox.Text = @"
-WINBREATHE v2.1 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 · 8.1 · 10 · 11)
+WINBREATHE v2.1 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 | 8.1 | 10 | 11)
 
 1. AUTOMATIC OS & HARDWARE DETECTION
    - WinBreathe inspects your exact Windows build and storage type at launch and tailors tweaks:

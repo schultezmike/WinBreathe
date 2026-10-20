@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Isolated compatibility regressions
         shell: powershell
@@ -20,23 +20,9 @@ jobs:
           .\tests\Report.Tests.ps1
           .\tests\SnapshotFile.Tests.ps1
 
-      - name: Validate PowerShell AST Syntax & Pure ASCII Encoding
+      - name: Validate PowerShell syntax and encoding
         shell: powershell
-        run: |
-          $scripts = Get-ChildItem -Path .\src -Include *.ps1, *.psm1 -Recurse
-          foreach ($s in $scripts) {
-              $errors = $null
-              [void][System.Management.Automation.Language.Parser]::ParseFile($s.FullName, [ref]$null, [ref]$errors)
-              if ($errors.Count -gt 0) {
-                  throw "Syntax errors in $($s.Name): $($errors | Out-String)"
-              }
-              $bytes = [System.IO.File]::ReadAllBytes($s.FullName)
-              $nonAscii = $bytes | Where-Object { $_ -gt 127 }
-              if ($nonAscii) {
-                  throw "Non-ASCII characters detected in $($s.Name). Keep scripts pure 7-bit ASCII."
-              }
-              Write-Host "[OK] $($s.Name): 0 syntax errors, pure ASCII verified." -ForegroundColor Green
-          }
+        run: .\Compile.ps1 -VerifyOnly
 
       - name: Validate tweaks.json Schema & Dry-Run Preview
         shell: powershell

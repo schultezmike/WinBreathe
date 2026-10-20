@@ -15,7 +15,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Run Compiler Pipeline (Compile.ps1)
         shell: powershell
@@ -23,7 +23,7 @@ jobs:
           .\Compile.ps1
 
       - name: Upload Compiled Executables & Portable Packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: WinBreathe-Release-Binaries
           path: |
@@ -34,7 +34,7 @@ jobs:
 
       - name: Publish GitHub Release on Tag Push
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           generate_release_notes: true
           files: |

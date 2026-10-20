@@ -24,14 +24,17 @@ Write-Host "  Compiler: $cscPath" -ForegroundColor Cyan
 Write-Host "======================================================================" -ForegroundColor Cyan
 
 # 1. AST Syntax & Pure ASCII Verification
-$psFiles = Get-ChildItem -Path (Join-Path $repoRoot "src") -Include *.ps1, *.psm1 -Recurse
+$psFiles = @(Get-ChildItem -Path (Join-Path $repoRoot "src") -Include *.ps1, *.psm1 -Recurse) + @(Get-ChildItem -Path (Join-Path $repoRoot "tests") -Filter *.ps1) + @(Get-Item $PSCommandPath)
 foreach ($f in $psFiles) {
     $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors)
     if ($errors.Count -gt 0) {
         throw "Syntax error in $($f.FullName): $($errors | Out-String)"
     }
-    Write-Host "[PASS] AST Syntax Verified: $($f.Name)" -ForegroundColor Green
+    if (@([System.IO.File]::ReadAllBytes($f.FullName) | Where-Object { $_ -gt 127 }).Count -gt 0) {
+        throw "Non-ASCII bytes in $($f.FullName). Use ASCII script text for Windows PowerShell compatibility."
+    }
+    Write-Host "[PASS] AST and ASCII verified: $($f.Name)" -ForegroundColor Green
 }
 
 if ($VerifyOnly) {
