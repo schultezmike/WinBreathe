@@ -2,6 +2,14 @@
 
 All notable changes to **WinBreathe** are documented in this file.
 
+## [2.2.0] - 2026-10-27
+
+- Added Memory Watch with system-wide commit, kernel pool readings, tray alerts, sustained-warning/recovery logic and bounded numeric history.
+- Added read-only memory incident investigation and private-commit process readings; reports now explain kernel and commit pressure.
+- Defer live optimization under critical or unavailable memory readings. No automatic termination, pagefile resize or driver disablement.
+- Bound child-output and GUI-console memory and fix chart drawing-resource disposal.
+- Added synthetic pressure/event/history/output regressions and documented the October 26 incident. The kernel component responsible for that incident remains unidentified.
+
 ## [2.1.2-preview] - 2026-10-20
 
 - Publishes the security and reliability fixes developed in the local-only 2.1.1 preview, including the launcher startup fix, safe preview handling, protected snapshots, non-blocking output and readable failure summaries.

@@ -24,8 +24,8 @@ using System.Windows.Forms;
 [assembly: AssemblyVersion("1.1.0.0")]
 [assembly: AssemblyFileVersion("1.1.0.0")]
 #else
-[assembly: AssemblyVersion("2.1.2.0")]
-[assembly: AssemblyFileVersion("2.1.2.0")]
+[assembly: AssemblyVersion("2.2.0.0")]
+[assembly: AssemblyFileVersion("2.2.0.0")]
 #endif
 
 namespace WinBreatheHost
@@ -52,7 +52,7 @@ namespace WinBreatheHost
 #if V1_BUILD
                 string versionTag = "v1.1.0";
 #else
-                string versionTag = "v2.1.2";
+                string versionTag = "v2.2.0";
 #endif
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
                 runtimeDir = PrepareRuntimeDirectory(exeDir, versionTag);
@@ -206,6 +206,7 @@ namespace WinBreatheHost
 #else
             ExtractResource(asm, "WinBreathe.ProcessOutput.cs", Path.Combine(baseLocal, "src", "WinBreathe.ProcessOutput.cs"));
             ExtractResource(asm, "WinBreathe.Engine.psm1", Path.Combine(baseLocal, "src", "WinBreathe.Engine.psm1"));
+            ExtractResource(asm, "WinBreathe.MemoryWatch.ps1", Path.Combine(baseLocal, "src", "WinBreathe.MemoryWatch.ps1"));
             ExtractResource(asm, "WinBreathe.ps1", Path.Combine(baseLocal, "src", "WinBreathe.ps1"));
             ExtractResource(asm, "WinBreathe.GUI.ps1", Path.Combine(baseLocal, "src", "WinBreathe.GUI.ps1"));
             ExtractResource(asm, "tweaks.json", Path.Combine(baseLocal, "config", "tweaks.json"));

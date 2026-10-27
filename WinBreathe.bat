@@ -2,7 +2,7 @@
 set "SCRIPT_DIR=%~dp0"
 set "SELF_PATH=%~f0"
 set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
-title WinBreathe v2.1.2 - Windows Memory and Settings Utility
+title WinBreathe v2.2.0 - Windows Memory and Settings Utility
 color 0B
 
 :: -----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ set "GUI_SCRIPT=%SCRIPT_DIR%src\WinBreathe.GUI.ps1"
 cls
 set "CHOICE="
 echo ======================================================================
-echo   WinBreathe v2.1.2 - Windows Memory and Settings Utility
+echo   WinBreathe v2.2.0 - Windows Memory and Settings Utility
 echo   Review settings first. Memory savings are not guaranteed.
 echo ======================================================================
 echo.
@@ -63,7 +63,7 @@ set /p CHOICE="Select an option [0-9]: "
 
 if "%CHOICE%"=="1" (
     echo.
-    echo [*] Launching WinBreathe v2.1.2 Graphical Interface...
+    echo [*] Launching WinBreathe v2.2.0 Graphical Interface...
     start "" "%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%GUI_SCRIPT%"
     exit /b
 )

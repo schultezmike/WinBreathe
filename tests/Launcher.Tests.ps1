@@ -3,7 +3,7 @@
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=Split-Path -Parent $PSScriptRoot
-$exe=Join-Path $root 'releases/v2.1.2/WinBreathe-v2.1.2-x64.exe'
+$exe=Join-Path $root 'releases/v2.2.0/WinBreathe-v2.2.0-x64.exe'
 $assembly=[Reflection.Assembly]::LoadFile($exe)
 $program=$assembly.GetType('WinBreatheHost.Program')
 $flags=[Reflection.BindingFlags]'NonPublic,Static'
@@ -39,7 +39,26 @@ try {
     if($process.ExitCode -ne 0){throw 'Launcher preview exit code failed'}
 }finally{$process.Dispose()}
 Write-Host 'PASS: compiled launcher handles GUI plus WhatIf without opening a window'
-foreach($name in @('WinBreathe.Engine.psm1','WinBreathe.ps1','WinBreathe.GUI.ps1','WinBreathe.ProcessOutput.cs','tweaks.json')) {
+if(-not ('WBProcessOutput' -as [type])){Add-Type -Path (Join-Path $root 'src/WinBreathe.ProcessOutput.cs')}
+$smoke=New-Object Diagnostics.ProcessStartInfo
+$smoke.FileName=$exe
+$smoke.Arguments='-Profile Balanced -WhatIf'
+$smoke.UseShellExecute=$false;$smoke.CreateNoWindow=$true
+$smoke.RedirectStandardOutput=$true;$smoke.RedirectStandardError=$true
+$child=[Diagnostics.Process]::Start($smoke)
+$buffer=New-Object WBProcessOutput($child)
+$clock=[Diagnostics.Stopwatch]::StartNew();$output=@()
+try{
+    while(-not $buffer.Complete -and $clock.Elapsed.TotalSeconds -lt 45){
+        $line=$buffer.ReadAvailable()
+        if($null -ne $line){$output+=$line}else{Start-Sleep -Milliseconds 10}
+    }
+    if(-not $buffer.Complete -or $child.ExitCode -ne 0){throw 'Compiled profile preview did not complete successfully'}
+    $joined=$output -join "`n"
+    if($joined -notmatch '\[PREVIEW\]' -or $joined -notmatch '0 applied;' -or $joined -match '\[ERROR\]|APPLIED \['){throw 'Compiled profile preview reported errors or live application'}
+}finally{$buffer.Dispose();$child.Dispose()}
+Write-Host 'PASS: compiled Balanced profile preview completes with no applied tweaks'
+foreach($name in @('WinBreathe.Engine.psm1','WinBreathe.MemoryWatch.ps1','WinBreathe.ps1','WinBreathe.GUI.ps1','WinBreathe.ProcessOutput.cs','tweaks.json')) {
     $stream=$assembly.GetManifestResourceStream($name)
     if(-not $stream){throw "Missing embedded resource $name"}
     $sha=[Security.Cryptography.SHA256]::Create()

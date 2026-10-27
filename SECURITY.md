@@ -1,5 +1,9 @@
 # Security policy
 
+## v2.2.0 monitoring
+
+Memory Watch is advisory and runs only while the GUI is open or minimized. It does not install persistence, make paging changes or terminate processes. Its two-file numeric journal, child-output queue and console are bounded. Raw Windows event XML is parsed with external entities prohibited and a document-size limit. Incident queries read a bounded recent window; unreadable history is marked incomplete. These measures do not establish protection from kernel bugs or resource exhaustion.
+
 ## v2.1.2 preview trust model
 
 The compiled launcher executes only embedded source. Unelevated runs use a fresh per-launch temporary folder with inherited restricted-token permissions. Elevated runs require a trusted Program Files parent and create an administrator/SYSTEM-only runtime. PowerShell is resolved by an absolute system path. Source scripts remain an explicit trust decision: do not run untrusted source elevated.
@@ -14,7 +18,7 @@ No audit can guarantee the absence of vulnerabilities. Elevated Undo acceptance,
 
 ## Supported downloads
 
-Use the current v2.1.2 preview for the fixes described in `docs/RELEASE-2.1.2.md`. Earlier v2 downloads are retired because they lack these fixes. Version 1.1.0 remains available by request as a legacy release; retention is not a security or compatibility certification.
+Use v2.2.0 for the current memory monitoring, output/resource bounds and earlier safety fixes described in `docs/RELEASE-2.2.0.md`. Superseded v2 builds lack some of these changes. Version 1.1.0 remains available by request as a legacy release; retention is not a security or compatibility certification. Release checks do not prove crash prevention or the absence of every vulnerability.
 
 ## Reporting
 

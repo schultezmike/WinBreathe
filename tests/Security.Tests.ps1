@@ -3,6 +3,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $root 'src/WinBreathe.MemoryWatch.ps1')
 $tokens=$null; $errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'src/WinBreathe.Engine.psm1'),[ref]$tokens,[ref]$errors)
 foreach ($name in @('Assert-WBSnapshot','Assert-WBProtectedPath','Get-WBRegistryState','Stop-WBAppGroup','Invoke-WBSafeFlush','Install-WBUpdateGuard','Invoke-WBTweaks','Test-WBTweakCondition','Enter-WBOperation','Exit-WBOperation')) {
@@ -33,7 +34,7 @@ MustReject {Assert-WBSnapshot $safe} 'Undo rejects a snapshot from a different u
 MustReject {Assert-WBSnapshot ([pscustomobject]@{})} 'Undo rejects empty/incomplete JSON'
 $script:stops=0
 function Stop-Process { $script:stops++;throw 'Unexpected process termination' }
-function Get-WBMemorySnapshot {[pscustomobject]@{UsedRAMMB=500;LoadPercent=10;AvailRAMMB=4500}}
+function Get-WBMemorySnapshot {[pscustomobject]@{UsedRAMMB=500;LoadPercent=10;AvailRAMMB=4500;TotalRAMMB=5000;CommitUsedMB=7000;CommitTotalMB=16000;KernelPagedMB=300;KernelNonpagedMB=200}}
 Assert (-not (Stop-WBAppGroup '*')) 'Protected process list cannot be bypassed with a wildcard'
 Assert (Invoke-WBSafeFlush) 'Legacy flush command is read-only'
 Assert ($script:stops -eq 0) 'Memory check never terminates processes'
@@ -78,11 +79,15 @@ MustReject {Get-WBRegistryState 'MOCK' 'Mock'} 'Unreadable registry key is not r
     function New-WBSnapshot {$null}
     $result=Invoke-WBTweaks
     Assert ($result.Aborted -and $script:writesAttempted -eq 2) 'Backup failure aborts before any further writes'
+    function Get-WBMemorySnapshot {[pscustomobject]@{UsedRAMMB=7000;LoadPercent=85;AvailRAMMB=1000;TotalRAMMB=8000;CommitUsedMB=15900;CommitTotalMB=16000;KernelPagedMB=300;KernelNonpagedMB=200}}
+    function New-WBSnapshot {throw 'Critical memory must abort before backup capture'}
+    $result=Invoke-WBTweaks
+    Assert ($result.Aborted -and $script:writesAttempted -eq 2) 'Critical commit pressure defers optimization before backup or writes'
 }
 # Invoke the real CLI in a child process. Every alternate action with WhatIf
 # must exit before calling any registry/process/service/scheduler routine.
 $ps=Join-Path $PSHOME 'powershell.exe'
-foreach($action in @('-Undo','-ResetDefaults','-Flush','-InstallGuard','-RemoveGuard','-Snapshot','-GUI','-ExportReport')) {
+foreach($action in @('-Undo','-ResetDefaults','-Flush','-InstallGuard','-RemoveGuard','-Snapshot','-GUI','-ExportReport','-MemoryStatus')) {
     $output=& $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src/WinBreathe.ps1') $action -WhatIf 2>&1
     Assert ($LASTEXITCODE -eq 0 -and ($output -join '') -match '\[PREVIEW\]') "WhatIf blocks alternate action $action"
 }

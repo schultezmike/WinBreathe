@@ -8,9 +8,10 @@ $root=Split-Path -Parent $PSScriptRoot
 $ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'src/WinBreathe.Engine.psm1'),[ref]$tokens,[ref]$errors)
 $fn=$ast.Find({param($n)$n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Export-WBReport'},$true)
 . ([scriptblock]::Create($fn.Extent.Text))
+. (Join-Path $root 'src/WinBreathe.MemoryWatch.ps1')
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 function Get-WBPaths { [pscustomobject]@{ReportDir=$OutputDirectory} }
-function Get-WBSystemProfile { [pscustomobject]@{OSCaption='SAMPLE DATA - Windows 11'; UsedRAMMB=4096;TotalRAMMB=8192;AvailRAMMB=4096;LoadPercent=50;FreeDiskGB=100;SystemDrive='C:'} }
+function Get-WBSystemProfile { [pscustomobject]@{OSCaption='SAMPLE DATA - Windows 11'; UsedRAMMB=4096;TotalRAMMB=8192;AvailRAMMB=4096;LoadPercent=50;FreeDiskGB=100;SystemDrive='C:';CommitUsedMB=7000;CommitTotalMB=20000;KernelPagedMB=400;KernelNonpagedMB=300} }
 function Get-WBUpdateGuardStatus { [pscustomobject]@{Installed=$false;State='Not Installed'} }
 function Get-WBTopProcesses { [pscustomobject]@{AppName='<script>alert(1)</script>|Example';MemoryMB=400} }
 function Write-WBLog { param($Message,$Level) }
@@ -52,5 +53,9 @@ foreach($expected in @(
 if($html.IndexOf('What to do next') -gt $html.IndexOf('<section class="technical">')) {throw 'Narrative must precede technical section'}
 if($html.Contains('<script>')) {throw 'Unsafe app name was not escaped'}
 if(-not $md.Contains('&#124;Example')) {throw 'Markdown table delimiter was not escaped'}
+function Get-WBSystemProfile { [pscustomobject]@{OSCaption='SAMPLE DATA - Windows 11'; UsedRAMMB=7000;TotalRAMMB=8192;AvailRAMMB=1192;LoadPercent=85;FreeDiskGB=100;SystemDrive='C:';CommitUsedMB=19760;CommitTotalMB=20000;KernelPagedMB=10000;KernelNonpagedMB=400} }
+$critical=Export-WBReport
+$criticalHtml=Get-Content -LiteralPath $critical.HtmlPath -Raw
+if(-not $criticalHtml.Contains('Memory Watch assessment: Critical') -or -not $criticalHtml.Contains('A driver or filter investigation is needed')){throw 'Report must identify critical commit/kernel pressure even below 90% physical RAM load'}
 Write-Host 'PASS: plain-language statuses, applicable-profile counts, optional details and escaping'
 Write-Host "Sample report: $($result.HtmlPath)"

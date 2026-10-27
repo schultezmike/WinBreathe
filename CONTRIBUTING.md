@@ -14,6 +14,9 @@ Thank you for your interest in contributing to **WinBreathe**!
 Before submitting a Pull Request, run the verification suite from an elevated or standard PowerShell prompt:
 
 ```powershell
+# Run the release checks, compiler, real executable preview and package validation
+.\scripts\Test-Release.ps1 -Build
+
 # 1. Verify zero syntax errors across all scripts
 Get-ChildItem .\src\*.ps* | ForEach-Object {
     $err = $null

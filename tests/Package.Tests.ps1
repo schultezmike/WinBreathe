@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$version = '2.1.2'
+$version = '2.2.0'
 $release = Join-Path $root "releases/v$version"
 function Require($Condition,[string]$Message) { if (-not $Condition) { throw $Message } }
 function StreamHash($Stream) {
@@ -22,7 +22,7 @@ foreach ($line in $lines) {
     Require ((Get-FileHash -LiteralPath (Join-Path $release $name)).Hash -eq $hash) "Asset checksum mismatch: $name"
 }
 $manifest = Get-Content -LiteralPath (Join-Path $release 'SOURCE-MANIFEST.json') -Raw | ConvertFrom-Json
-Require ($manifest.Version -eq "$version-preview") 'Incorrect manifest version.'
+Require ($manifest.Version -eq $version) 'Incorrect manifest version.'
 if ($env:GITHUB_REF -like 'refs/tags/*') {
     Require ($env:GITHUB_REF -eq "refs/tags/v$version") 'The tag does not match this package version.'
     Require ($manifest.WorkingTreeDirty -eq $false -and $manifest.RepositoryCommit -eq $env:GITHUB_SHA) 'Tag publication requires the clean tagged source revision.'

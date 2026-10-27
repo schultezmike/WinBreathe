@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.1.2)
+# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.2.0)
 # Usage Examples:
 #   .\src\WinBreathe.ps1 -GUI
 #   .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
@@ -26,6 +26,7 @@ param(
     [switch]$Undo,
     [switch]$ResetDefaults,
     [switch]$Status,
+    [switch]$MemoryStatus,
     [switch]$Flush,
     [switch]$InstallGuard,
     [switch]$RemoveGuard,
@@ -50,7 +51,7 @@ if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf -and -not $Status)
 if ($Help) {
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.1.2 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.2.0 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
     Write-Host "  OS Coverage: Windows 11 | Windows 10 | Windows 8.1 | Windows 7" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  -GUI                              Launch the 6-tab graphical dashboard"
@@ -59,6 +60,7 @@ if ($Help) {
     Write-Host "  -TweakIds <id1,id2...>            Apply only specific tweak IDs from config/tweaks.json"
     Write-Host "  -WhatIf                           Preview every change without modifying the system"
     Write-Host "  -Status                           Check live tweak drift & hardware telemetry"
+    Write-Host "  -MemoryStatus                     Read commit headroom, kernel pools and recent memory/restart events"
     Write-Host "  -Flush                            Read memory without closing apps (legacy alias)"
     Write-Host "  -Snapshot                         Save current registry/service/pagefile state to JSON"
     Write-Host "  -Undo                             Restore exact pre-optimization state from latest snapshot"
@@ -71,11 +73,11 @@ if ($Help) {
 }
 
 # WhatIf is global: alternate action switches must never bypass preview mode.
-if ($WhatIf -and ($GUI -or $Snapshot -or $Undo -or $ResetDefaults -or $Flush -or $InstallGuard -or $RemoveGuard -or $ExportReport)) {
+if ($WhatIf -and ($GUI -or $Snapshot -or $Undo -or $ResetDefaults -or $Flush -or $InstallGuard -or $RemoveGuard -or $ExportReport -or $MemoryStatus)) {
     Write-Host '[PREVIEW] The requested action was not executed. No settings or processes were changed.'
     exit 0
 }
-if (@(@($GUI,$Snapshot,$Undo,$ResetDefaults,$Status,$Flush,$InstallGuard,$RemoveGuard,$ExportReport) | Where-Object { $_ }).Count -gt 1) {
+if (@(@($GUI,$Snapshot,$Undo,$ResetDefaults,$Status,$MemoryStatus,$Flush,$InstallGuard,$RemoveGuard,$ExportReport) | Where-Object { $_ }).Count -gt 1) {
     Write-Error 'Choose one action at a time.'
     exit 2
 }
@@ -85,12 +87,42 @@ if ($GUI) {
     exit 0
 }
 
+if ($MemoryStatus) {
+    $reading=Get-WBMemorySnapshot
+    $pressure=Get-WBMemoryPressure $reading
+    Write-Host "Memory pressure: $($pressure.Level). $($pressure.Summary)"
+    Write-Host ("RAM available: {0:N0} MB of {1:N0} MB" -f $reading.AvailRAMMB,$reading.TotalRAMMB)
+    Write-Host ("Commit: {0:N0} / {1:N0} MB ({2}%). Headroom: {3:N0} MB" -f $reading.CommitUsedMB,$reading.CommitTotalMB,$pressure.CommitPercent,$pressure.CommitHeadroomMB)
+    Write-Host ("Kernel pools: paged {0:N0} MB; nonpaged {1:N0} MB" -f $reading.KernelPagedMB,$reading.KernelNonpagedMB)
+    foreach($reason in $pressure.Reasons){Write-Host $reason}
+    Write-Host 'Largest app private commitments (not resident RAM; not automatically terminated):'
+    foreach($app in Get-WBTopProcesses -Top 8 -SortBy PrivateCommitMB){Write-Host "$($app.AppName): $($app.PrivateCommitMB) MB private commit, $($app.MemoryMB) MB working set."}
+    try {
+        $pagefile=Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        Write-Host "Windows automatically manages pagefiles: $($pagefile.AutomaticManagedPagefile)"
+        if(-not $pagefile.AutomaticManagedPagefile){Write-Host 'Review system-managed paging in Windows advanced performance settings. More paging headroom may delay exhaustion; it does not repair a kernel leak.'}
+    } catch {Write-Host 'Pagefile configuration could not be read.'}
+    $history=Get-WBMemoryIncidents
+    Write-Host 'Recent Windows history (up to 20 events of each type in 7 days; times in UTC):'
+    foreach($event in $history.Events){
+        if($event.Kind -eq 'MemoryExhaustion'){Write-Host "$($event.TimeUTC): low virtual memory, commit $($event.CommitPercent)%; paged pool $($event.KernelPagedMB) MB; top allocation tag $($event.TopPagedPoolTag)."}
+        else{
+            $stopCode=if($null -eq $event.BugcheckCode){'not recorded'}else{$event.BugcheckCode}
+            Write-Host "$($event.TimeUTC): unexpected restart, stop code $stopCode."
+        }
+    }
+    if(-not $history.Complete){Write-Host 'Some Windows history could not be read; missing evidence is not proof that no incident occurred.'}
+    Write-Host $history.Note
+    Write-Host 'This command is read-only. Memory Watch alerts run only while the GUI is open or minimized to its tray icon.'
+    exit 0
+}
+
 if ($Status) {
     $sys   = Get-WBSystemProfile
     $guard = Get-WBUpdateGuardStatus
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.1.2 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.2.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  OS         : $($sys.OSCaption) (Build $($sys.OSBuild))"
     Write-Host "  RAM Usage  : $($sys.UsedRAMMB) MB / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)% Load | $($sys.AvailRAMMB) MB Free)"

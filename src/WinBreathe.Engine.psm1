@@ -1,5 +1,5 @@
 # ==============================================================================
-# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.1.2)
+# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.2.0)
 # Designed for Windows 11 / 10 (4-16 GB RAM, Mechanical HDDs & AI Dev Stacks)
 # License: MIT | Pure PowerShell 5.1+ | Zero External Dependencies
 # ==============================================================================
@@ -9,12 +9,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "SilentlyContinue"
 
 # ------------------------------------------------------------------------------
-# Win32 Native Memory API (Sub-millisecond, zero CPU/Disk overhead)
+# Native system memory readings; versioned to coexist with older imported modules.
 # ------------------------------------------------------------------------------
-if (-not ([System.Management.Automation.PSTypeName]'Win32Mem').Type) {
+if (-not ([System.Management.Automation.PSTypeName]'WinBreatheV220.Win32Mem').Type) {
     Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
+namespace WinBreatheV220 {
 [StructLayout(LayoutKind.Sequential)]
 public struct MEMORYSTATUSEX {
     public uint dwLength;
@@ -30,8 +31,19 @@ public struct MEMORYSTATUSEX {
 public class Win32Mem {
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+    [DllImport("psapi.dll", SetLastError = true)]
+    public static extern bool GetPerformanceInfo(ref WBPERFORMANCE_INFORMATION info, uint size);
 }
-"@ -ErrorAction SilentlyContinue
+[StructLayout(LayoutKind.Sequential)]
+public struct WBPERFORMANCE_INFORMATION {
+    public uint cb;
+    public UIntPtr CommitTotal, CommitLimit, CommitPeak;
+    public UIntPtr PhysicalTotal, PhysicalAvailable, SystemCache;
+    public UIntPtr KernelTotal, KernelPaged, KernelNonpaged, PageSize;
+    public uint HandleCount, ProcessCount, ThreadCount;
+}
+}
+"@ -ErrorAction Stop
 }
 
 # ------------------------------------------------------------------------------
@@ -111,18 +123,26 @@ function Get-WBTweakCatalog {
 # Hardware & Memory Telemetry
 # ------------------------------------------------------------------------------
 function Get-WBMemorySnapshot {
-    $stat = New-Object MEMORYSTATUSEX
+    $stat = New-Object WinBreatheV220.MEMORYSTATUSEX
     $stat.dwLength = [uint32][System.Runtime.InteropServices.Marshal]::SizeOf($stat)
-    if (-not [Win32Mem]::GlobalMemoryStatusEx([ref]$stat)) {
+    if (-not [WinBreatheV220.Win32Mem]::GlobalMemoryStatusEx([ref]$stat)) {
         throw 'Windows memory query failed. No memory reading is available.'
     }
 
     $totalMB  = [int][math]::Round($stat.ullTotalPhys / 1MB, 0)
     $availMB  = [int][math]::Round($stat.ullAvailPhys / 1MB, 0)
     $usedMB   = $totalMB - $availMB
-    $commitTotalMB = [int][math]::Round($stat.ullTotalPageFile / 1MB, 0)
-    $commitAvailMB = [int][math]::Round($stat.ullAvailPageFile / 1MB, 0)
-    $commitUsedMB  = $commitTotalMB - $commitAvailMB
+    # GetPerformanceInfo exposes system-wide commit/pools. MEMORYSTATUSEX's
+    # pagefile fields may instead be limited by the calling process/job.
+    $perf = New-Object WinBreatheV220.WBPERFORMANCE_INFORMATION
+    $perf.cb = [uint32][Runtime.InteropServices.Marshal]::SizeOf($perf)
+    if (-not [WinBreatheV220.Win32Mem]::GetPerformanceInfo([ref]$perf, $perf.cb)) {
+        throw 'Windows system commit query failed. Memory Watch cannot assess pressure.'
+    }
+    $pageBytes = [double]$perf.PageSize.ToUInt64()
+    $commitTotalMB = [math]::Round($perf.CommitLimit.ToUInt64() * $pageBytes / 1MB, 2)
+    $commitUsedMB = [math]::Round($perf.CommitTotal.ToUInt64() * $pageBytes / 1MB, 2)
+    $commitAvailMB = [math]::Max(0, $commitTotalMB - $commitUsedMB)
 
     return [PSCustomObject]@{
         LoadPercent   = [int]$stat.dwMemoryLoad
@@ -132,6 +152,9 @@ function Get-WBMemorySnapshot {
         CommitTotalMB = $commitTotalMB
         CommitUsedMB  = $commitUsedMB
         CommitAvailMB = $commitAvailMB
+        KernelPagedMB = [math]::Round($perf.KernelPaged.ToUInt64() * $pageBytes / 1MB, 2)
+        KernelNonpagedMB = [math]::Round($perf.KernelNonpaged.ToUInt64() * $pageBytes / 1MB, 2)
+        CollectedAtUTC = [DateTimeOffset]::UtcNow.ToString('o')
         Timestamp     = (Get-Date -Format "HH:mm:ss")
     }
 }
@@ -245,6 +268,9 @@ function Get-WBSystemProfile {
         LoadPercent        = $mem.LoadPercent
         CommitTotalMB      = $mem.CommitTotalMB
         CommitUsedMB       = $mem.CommitUsedMB
+        CommitAvailMB      = $mem.CommitAvailMB
+        KernelPagedMB      = $mem.KernelPagedMB
+        KernelNonpagedMB   = $mem.KernelNonpagedMB
     }
 }
 
@@ -945,7 +971,7 @@ function Invoke-WBTweaks {
 
     $modeBanner = if ($WhatIf) { "DRY-RUN PREVIEW MODE (No changes will be written)" } else { "LIVE OPTIMIZATION ($ProfileName Profile)" }
     Write-WBLog "======================================================================" "HEAD"
-    Write-WBLog "  WinBreathe v2.1.2 - Universal Windows Optimizer - $modeBanner" "HEAD"
+    Write-WBLog "  WinBreathe v2.2.0 - Universal Windows Optimizer - $modeBanner" "HEAD"
     Write-WBLog "  OS: $($sysProfile.OSCaption) [$($sysProfile.OSFamily)] | RAM: $($sysProfile.TotalRAMMB) MB | Disk: $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)" "HEAD"
     Write-WBLog "======================================================================" "HEAD"
 
@@ -964,6 +990,13 @@ function Invoke-WBTweaks {
         }
     }
 
+    if (-not $WhatIf) {
+        $pressure=Get-WBMemoryPressure -Snapshot $memBefore
+        if ($pressure.Level -in @('Critical','Unknown')) {
+            Write-WBLog "Optimization deferred: memory assessment is $($pressure.Level). Save work, pause new workloads and investigate memory before changing settings." 'ERROR'
+            return [pscustomobject]@{Profile=$ProfileName;WhatIf=$false;AppliedCount=0;SkippedCount=$selectedTweaks.Count;FailedCount=0;PreviewCount=0;Aborted=$true;BeforeRAMMB=$memBefore.UsedRAMMB;AfterRAMMB=$memBefore.UsedRAMMB;ReclaimedMB=0}
+        }
+    }
     $lease = $null
     try {
     if (-not $WhatIf) { $lease = Enter-WBOperation }
@@ -1152,7 +1185,7 @@ function Invoke-WBTweaks {
 # Safe Process Inspector & Transient Host Flusher (WB-03 Protected)
 # ------------------------------------------------------------------------------
 function Get-WBTopProcesses {
-    param([int]$Top = 18)
+    param([int]$Top = 18,[ValidateSet('MemoryMB','PrivateCommitMB')][string]$SortBy='MemoryMB')
     $catalog = Get-WBTweakCatalog
     $protectedSet = @{}
     foreach ($p in $catalog.protectedProcesses) {
@@ -1164,17 +1197,19 @@ function Get-WBTopProcesses {
         ForEach-Object {
             $nameLower = $_.Name.ToLowerInvariant()
             $totalWS   = ($_.Group | Measure-Object -Property WorkingSet64 -Sum).Sum
+            $totalPrivate = ($_.Group | Measure-Object -Property PrivateMemorySize64 -Sum).Sum
             $ramMB     = [int][math]::Round($totalWS / 1MB, 1)
             $isProt    = $protectedSet.ContainsKey($nameLower)
             [PSCustomObject]@{
                 AppName      = $_.Name
                 ProcessCount = $_.Count
                 MemoryMB     = $ramMB
+                PrivateCommitMB = [math]::Round($totalPrivate/1MB,1)
                 IsProtected  = $isProt
                 SafetyStatus = if ($isProt) { "Protected (Untouchable)" } else { "User / App" }
             }
         } |
-        Sort-Object -Property MemoryMB -Descending |
+        Sort-Object -Property $SortBy -Descending |
         Select-Object -First $Top
 
     return $groups
@@ -1382,7 +1417,12 @@ function Export-WBReport {
     $totalGB = '{0:N1}' -f ($sys.TotalRAMMB / 1024.0)
     $freeGB = '{0:N1}' -f ($sys.AvailRAMMB / 1024.0)
     $memoryText = "$usedGB of $totalGB GB in use ($($sys.LoadPercent)%); $freeGB GB available."
-    $advice = if ($sys.LoadPercent -ge 90) {
+    $pressure = Get-WBMemoryPressure -Snapshot $sys
+    $commitText = if($pressure.Level -eq 'Unknown'){'Could not verify total memory commitment and kernel pools.'}else{
+        "Windows has committed $([math]::Round($sys.CommitUsedMB/1024,2)) of $([math]::Round($sys.CommitTotalMB/1024,2)) GiB ($($pressure.CommitPercent)%); $($pressure.CommitHeadroomMB) MB headroom remains. Kernel paged memory: $([math]::Round($sys.KernelPagedMB)) MB; nonpaged: $([math]::Round($sys.KernelNonpagedMB)) MB."
+    }
+    $advice = if ($pressure.Level -in @('Critical','Warning')) {$pressure.Summary}
+    elseif ($sys.LoadPercent -ge 90) {
         'Memory is nearly full right now. Save your work and close apps or tabs you no longer need.'
     } elseif ($sys.LoadPercent -ge 75) {
         'Much of your memory is in use right now. If the PC feels slow, review the apps below and close unused tabs.'
@@ -1395,6 +1435,9 @@ function Export-WBReport {
         "$matching of $($recommended.Count) available settings in the $ProfileName profile match the suggested values."
     }
     $findings = @("Your computer is using $($sys.LoadPercent)% of its memory. It has about $freeGB GB left for opening apps and doing more work.")
+    $findings += $commitText
+    $findings += "Memory Watch assessment: $($pressure.Level). $($pressure.Summary)"
+    if($pressure.KernelConcern){$findings+='Windows kernel pools are unusually large. This memory is not listed under ordinary app working sets. A driver or filter investigation is needed; this reading alone cannot identify the responsible component.'}
     $userApps = @($apps | Where-Object { $_.AppName -notmatch '^(svchost|System|Idle|Memory Compression|MsMpEng|explorer|dwm|Registry|services|lsass|csrss)$' } | Select-Object -First 3)
     if ($userApps.Count -gt 0) {
         $appText = ($userApps | ForEach-Object { "$($_.AppName) ($($_.MemoryMB) MB)" }) -join ', '
@@ -1427,7 +1470,11 @@ function Export-WBReport {
         elseif ($guard.State -like 'Unsupported*') { 'Unavailable on this version of Windows.' }
         else { 'Off: settings are not automatically reapplied after startup.' }
     $nextSteps = @()
-    if ($sys.LoadPercent -ge 75 -and $userApps.Count -gt 0) {
+    if ($pressure.KernelConcern) {
+        $nextSteps += 'Save your work now. Use Investigate Memory to inspect recent resource-exhaustion events. Review the pagefile setting with your administrator and investigate kernel-memory growth before applying more optimization tweaks. Do not disable security or storage drivers based on an allocation tag alone.'
+    } elseif ($pressure.Level -eq 'Critical') {
+        $nextSteps += $advice
+    } elseif ($sys.LoadPercent -ge 75 -and $userApps.Count -gt 0) {
         $nextSteps += "Start with $($userApps[0].AppName): save your work and close windows or tabs you no longer need. Then refresh the dashboard and check whether more memory is available. Leave Windows services, security software and your VPN running."
     } else { $nextSteps += $advice }
     foreach ($item in $unmatched) {
@@ -1442,11 +1489,12 @@ function Export-WBReport {
     }
     $nextSteps += 'Try the task that felt slow again. If it still feels slow, open Task Manager and check whether CPU or Disk usage stays high while the problem happens.'
     $nextSteps += 'This report shows your computer now. Without a before-and-after comparison, it cannot tell you how much WinBreathe improved performance.'
+    $nextSteps += 'Memory Watch alerts work only while WinBreathe is open or minimized to its tray icon. They cannot guarantee prevention of crashes. Notifications may be suppressed by Windows; no apps are automatically closed.'
     $md = @('# Your WinBreathe computer report', '', "Created: $stamp | Windows: $(ConvertTo-WBReportMarkdown $sys.OSCaption)", '', '## 1. What is happening on your computer', '')
     foreach ($finding in $findings) { $md += @((ConvertTo-WBReportMarkdown $finding), '') }
     $md += @('## What to do next', '')
     foreach ($step in $nextSteps) { $md += "- $(ConvertTo-WBReportMarkdown $step)" }
-    $md += @('', '---', '', '## 2. Technical details', '', '### Computer readings', '', "- Memory: $memoryText", "- Free storage: $($sys.FreeDiskGB) GB", "- Profile: $ProfileName ($matching / $($recommended.Count) settings match)", "- Automatic reapply: $guardText", '', '### Settings', '', 'Matching means the current value agrees with the selected profile. Optional settings are outside that profile; they do not need to be enabled.', '',
+    $md += @('', '---', '', '## 2. Technical details', '', '### Computer readings', '', "- Memory: $memoryText", "- Commit and kernel pools: $commitText", "- Memory pressure: $($pressure.Level)", "- Free storage: $($sys.FreeDiskGB) GB", "- Profile: $ProfileName ($matching / $($recommended.Count) settings match)", "- Automatic reapply: $guardText", '', '### Settings', '', 'Matching means the current value agrees with the selected profile. Optional settings are outside that profile; they do not need to be enabled.', '',
         '| Setting | Status | What it does |', '|---|---|---|')
     $settingCards = ''
     $technicalRows = ''
@@ -1478,12 +1526,12 @@ function Export-WBReport {
 <style>
 body{margin:0;background:#f3f5f8;color:#243247;font:16px/1.6 'Segoe UI',sans-serif}main{max-width:960px;margin:auto;padding:32px 20px}h1{font-size:32px;line-height:1.2}h2{margin-top:32px}h3{font-size:17px;margin:0}.intro{color:#526278}.cards{display:flex;flex-wrap:wrap;gap:16px}.card,.setting,details,.advice{background:white;border:1px solid #dce2ea;border-radius:12px;padding:20px}.card{flex:1;min-width:200px}.card strong{display:block;font-size:21px}.setting{margin:12px 0}.setting p{margin:8px 0 0}.badge{font-size:14px;color:#245381;font-weight:600}table{width:100%;border-collapse:collapse;background:white}td,th{text-align:left;padding:12px;border-bottom:1px solid #dce2ea;overflow-wrap:anywhere}th{background:#e9eef5}.technical{margin-top:48px;padding-top:24px;border-top:3px solid #b6c8df}.narrative{max-width:760px}details{margin-top:40px;border-top:4px solid #b6c8df}details[open]>summary{margin-bottom:20px}.scroll{overflow-x:auto}footer{margin-top:28px;color:#526278;font-size:14px}@media print{body{background:white}main{padding:0}.setting{break-inside:avoid}.technical{break-before:page}}
 </style></head><body><main>
-<h1>Your computer report</h1><p class="intro">WinBreathe 2.1.2 &middot; $stamp &middot; $(Html $sys.OSCaption)</p>
+<h1>Your computer report</h1><p class="intro">WinBreathe 2.2.0 &middot; $stamp &middot; $(Html $sys.OSCaption)</p>
 <!-- Technical readings are presented after the narrative. -->
 <!-- <div class="cards"><div class="card">Memory in use<strong>$usedGB / $totalGB GB</strong>$($sys.LoadPercent)% in use &middot; $freeGB GB available</div><div class="card">Storage space available<strong>$($sys.FreeDiskGB) GB</strong>On $(Html $sys.SystemDrive)</div><div class="card">Settings matching your profile<strong>$matching / $($recommended.Count)</strong>$(Html $ProfileName) profile &middot; available settings only</div></div> -->
 <section class="narrative"><h2>1. What is happening on your computer</h2>$findingsHtml
 <h2>What to do next</h2><div class="advice"><ol>$stepsHtml</ol><p><strong>Automatic reapply:</strong> $(Html $guardText) This is a preference, not a performance fault.</p></div>
-</section><section class="technical"><h2>2. Technical details</h2><p>The readings and settings below support the explanation above.</p><table><tbody><tr><th>Memory</th><td>$memoryText</td></tr><tr><th>Free storage</th><td>$($sys.FreeDiskGB) GB on $(Html $sys.SystemDrive)</td></tr><tr><th>Profile</th><td>$(Html $ProfileName): $matching / $($recommended.Count) settings match</td></tr><tr><th>Automatic reapply</th><td>$(Html $guardText)</td></tr></tbody></table><h2>Settings</h2><p>$(Html $settingsText) Matching means the current value agrees with this profile. Optional settings do not need to be enabled. Unavailable settings are excluded from the count above.</p><div class="scroll"><table><thead><tr><th>Setting</th><th>Status</th><th>Explanation</th></tr></thead><tbody>$settingCards</tbody></table></div>
+</section><section class="technical"><h2>2. Technical details</h2><p>The readings and settings below support the explanation above.</p><table><tbody><tr><th>Memory</th><td>$memoryText</td></tr><tr><th>Commit and kernel pools</th><td>$(Html $commitText)</td></tr><tr><th>Memory pressure</th><td>$(Html $pressure.Level)</td></tr><tr><th>Free storage</th><td>$($sys.FreeDiskGB) GB on $(Html $sys.SystemDrive)</td></tr><tr><th>Profile</th><td>$(Html $ProfileName): $matching / $($recommended.Count) settings match</td></tr><tr><th>Automatic reapply</th><td>$(Html $guardText)</td></tr></tbody></table><h2>Settings</h2><p>$(Html $settingsText) Matching means the current value agrees with this profile. Optional settings do not need to be enabled. Unavailable settings are excluded from the count above.</p><div class="scroll"><table><thead><tr><th>Setting</th><th>Status</th><th>Explanation</th></tr></thead><tbody>$settingCards</tbody></table></div>
 <h2>Apps using the most memory</h2><p>Larger memory use is not automatically a problem. Save your work before closing an app. These figures are current readings, not guaranteed recoverable memory.</p><table><thead><tr><th>App</th><th>Memory in use</th></tr></thead><tbody>$appRows</tbody></table>
 <h2>Values for support</h2><p>These values help troubleshoot settings; you do not need to interpret them to use this report.</p><div class="scroll"><table><thead><tr><th>Setting reference</th><th>Current value</th><th>Profile value</th></tr></thead><tbody>$technicalRows</tbody></table></div></section>
 <footer>This report records the current state only. Legacy Windows compatibility and performance remain experimental.</footer>
@@ -1496,12 +1544,19 @@ body{margin:0;background:#f3f5f8;color:#243247;font:16px/1.6 'Segoe UI',sans-ser
 }
 
 
+. (Join-Path $PSScriptRoot 'WinBreathe.MemoryWatch.ps1')
+
 Export-ModuleMember -Function @(
     'Get-WBPaths',
     'Write-WBLog',
     'Test-WBAdmin',
     'Get-WBTweakCatalog',
     'Get-WBMemorySnapshot',
+    'Get-WBMemoryPressure',
+    'New-WBMemoryWatchState',
+    'Update-WBMemoryWatch',
+    'Write-WBMemoryJournal',
+    'Get-WBMemoryIncidents',
     'Get-WBSystemProfile',
     'Test-WBTweakState',
     'New-WBSnapshot',

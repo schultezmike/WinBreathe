@@ -1,12 +1,21 @@
-# WinBreathe 2.1.2 preview
+# WinBreathe v2.2.0 - Memory Watch
 
-A native Windows memory monitor and settings utility. Version 2.1.2 fixes reliability and security problems in earlier v2 builds. It does not promise a particular RAM percentage or performance improvement.
+A native Windows memory monitor and settings utility. Version 2.2.0 adds **Memory Watch** for commit exhaustion and unusually large kernel pools. It warns and records evidence while open or minimized; it cannot guarantee crash prevention or repair a driver leak.
 
-## Current package
+## What's new in 2.2.0
 
-[Download v2.1.2](https://github.com/schultezmike/WinBreathe/releases/tag/v2.1.2) or browse the [package files](releases/v2.1.2/). The release includes an x64 executable, portable ZIP, SHA-256 checksums, release notes and source manifest.
+- Commit-headroom and kernel-pool alerts, including tray operation, rate limiting and stable recovery detection.
+- Investigate Memory, recent exhaustion/restart details, private-commit readings and a small rotating journal.
+- Optimization is deferred when its initial memory reading is critical or unavailable.
+- Bounded task output and console history, chart-resource disposal, and pressure findings in reports.
 
-Earlier v2 downloads are retired because they lack these fixes. Their Git tags and source history are retained. The local-only v2.1.1 preview is superseded. [Version 1.1.0](https://github.com/schultezmike/WinBreathe/releases/tag/v1.1.0) remains available as a legacy release; keeping it available does not certify its security or compatibility.
+See [the v2.2.0 notes](docs/RELEASE-2.2.0.md) and [the October 26 restart investigation](docs/INVESTIGATION-2026-10-26.md). This release does not silently change paging, stop apps or disable drivers.
+
+## Published package
+
+[Download v2.2.0](https://github.com/schultezmike/WinBreathe/releases/tag/v2.2.0) or browse the [package files](releases/v2.2.0/). The release includes an x64 executable, portable ZIP, SHA-256 checksums, release notes and source manifest.
+
+Versions 2.0.0 and 2.1.0 are retired because they lack later safety fixes. Their Git tags and source history are retained. Version 2.1.2 is superseded by this update; it did not include Memory Watch or the bounded console and chart fixes. [Version 1.1.0](https://github.com/schultezmike/WinBreathe/releases/tag/v1.1.0) remains available as a legacy release; keeping it available does not certify its security or compatibility.
 
 ## What's new in 2.1.2
 
@@ -30,6 +39,7 @@ Windows x64, Windows PowerShell 5.1 and a compatible .NET Framework runtime. Win
 ```powershell
 # Inspect only
 .\src\WinBreathe.ps1 -Status
+.\src\WinBreathe.ps1 -MemoryStatus
 .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
 # Read memory without terminating apps
 .\src\WinBreathe.ps1 -Flush
@@ -47,6 +57,6 @@ Apply only settings you have reviewed. A backup is mandatory. Some changes requi
 .\scripts\Test-Release.ps1 -Build
 ```
 
-Tests use synthetic state, disposable files and non-mutating preview invocations. A user-supplied Windows 11 run reported a saved snapshot and 17 applied tweaks, with the Widgets write denied; it did not demonstrate immediate RAM savings. Elevated Undo, full GUI operation, legacy OS execution and power-loss behavior still need disposable-machine acceptance tests. Historical docs and screenshots may show older features and defaults. This remains a preview while those checks are incomplete.
+Tests use synthetic state, disposable files and non-mutating preview invocations, including critical commit, kernel-pool growth, recovery, invalid telemetry, event parsing and bounded history/output. Elevated Undo, legacy OS execution, power-loss behavior and long-session memory-pressure behavior remain incompletely tested. GitHub checks verify the tested code paths and package, not protection from every crash.
 
 Licensed under MIT. Security reports: use GitHub private security advisories.

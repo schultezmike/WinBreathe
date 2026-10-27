@@ -61,7 +61,7 @@ Assert ((Get-WBUpdateGuardStatus).State -eq 'Unsupported on this system') 'Guard
 $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-WBSystemProfile' }, $true)
 . ([scriptblock]::Create($fn.Extent.Text))
 $script:CachedHardwareInfo = $null
-function Get-WBMemorySnapshot { [pscustomobject]@{ TotalRAMMB=8192; UsedRAMMB=4096; AvailRAMMB=4096; LoadPercent=50; CommitTotalMB=16384; CommitUsedMB=4096 } }
+function Get-WBMemorySnapshot { [pscustomobject]@{ TotalRAMMB=8192; UsedRAMMB=4096; AvailRAMMB=4096; LoadPercent=50; CommitTotalMB=16384; CommitUsedMB=4096;CommitAvailMB=12288;KernelPagedMB=300;KernelNonpagedMB=200 } }
 function Get-Partition { throw 'Storage module absent' }
 function Get-PhysicalDisk { throw 'Fallback must not call unavailable Storage commands' }
 function Get-Item { $null }

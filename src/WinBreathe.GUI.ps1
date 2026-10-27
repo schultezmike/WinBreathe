@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.1.2)
+# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.2.0)
 # Features:
 #   - Custom GDI+ Circular RAM Gauge + Live 60-Point Memory History Chart
 #   - Per-Tweak Interactive Checklist with Profile Selector & Preview (-WhatIf)
@@ -73,12 +73,16 @@ for ($i = 0; $i -lt 30; $i++) {
     $script:UsedHistory.Add([int]$sysProfile.UsedRAMMB)
 }
 $script:LastSnap = Get-WBMemorySnapshot
+$script:MemoryWatch = New-WBMemoryWatchState
+$script:MemoryJournalPath = Join-Path (Get-WBPaths).DataDir 'memory-watch.jsonl'
+$script:JournalWarningShown = $false
+$script:TelemetryErrorShown = $false
 
 # ------------------------------------------------------------------------------
 # Main Form Setup
 # ------------------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "WinBreathe v2.1.2 - Universal Windows Memory & Latency Optimizer"
+$form.Text = "WinBreathe v2.2.0 - Memory Watch and Windows Settings"
 $form.Size = New-Object System.Drawing.Size(1020, 720)
 $form.MinimumSize = New-Object System.Drawing.Size(960, 680)
 $form.StartPosition = "CenterScreen"
@@ -117,7 +121,7 @@ if (Test-Path $logoPath) {
 $headerPanel.Controls.Add($logoBox)
 
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "WinBreathe v2.1.2"
+$lblTitle.Text = "WinBreathe v2.2.0"
 $lblTitle.Font = $fTitle
 $lblTitle.ForeColor = $cBlue
 $lblTitle.Location = New-Object System.Drawing.Point(78, 10)
@@ -298,11 +302,11 @@ $gaugeCanvas.Add_Paint({
     $barBg.Dispose()
     $barFg.Dispose()
 
-    $g.DrawString("Recommended Profile:", $fSmall, $subBrush, 194, 166)
+    $g.DrawString("Commit headroom:", $fSmall, $subBrush, 194, 166)
     $recBrush = New-Object System.Drawing.SolidBrush($cTeal)
-    $g.DrawString("$($sysProfile.RecommendedProfile) ($($sysProfile.DiskMediaType))", $fBold, $recBrush, 194, 184)
+    $g.DrawString(("{0:N0} MB" -f $snap.CommitAvailMB), $fBold, $recBrush, 194, 184)
 
-    $g.DrawString("Kernel API: GlobalMemoryStatusEx (<0.01ms)", $fSmall, $subBrush, 16, 222)
+    $g.DrawString(("Kernel pools: paged {0:N0} / nonpaged {1:N0} MB" -f $snap.KernelPagedMB,$snap.KernelNonpagedMB), $fSmall, $subBrush, 16, 222)
 
     $recBrush.Dispose()
     $textBrush.Dispose()
@@ -372,7 +376,10 @@ $chartCanvas.Add_Paint({
         $linePen.Dispose()
     }
 
-    $g.DrawString("3-second sampling interval | Zero disk I/O | Tier-1 AI & VPN Processes Protected", $fSmall, $subBrush, $plotLeft, $plotBottom + 8)
+    $g.DrawString("3-second readings | Memory Watch warns while open or minimized", $fSmall, $subBrush, $plotLeft, $plotBottom + 8)
+    $borderPen.Dispose()
+    $subBrush.Dispose()
+    $blueBrush.Dispose()
 
     $blueBrush.Dispose()
     $subBrush.Dispose()
@@ -381,7 +388,7 @@ $chartCanvas.Add_Paint({
 
 # Dashboard Console Output Box
 $lblConsole = New-Object System.Windows.Forms.Label
-$lblConsole.Text = "LIVE ENGINE & TELEMETRY CONSOLE"
+$lblConsole.Text = "MEMORY WATCH - active while WinBreathe is open or in the tray"
 $lblConsole.Font = $fBold
 $lblConsole.ForeColor = $cSubtext
 $lblConsole.Location = New-Object System.Drawing.Point(14, 274)
@@ -389,8 +396,8 @@ $lblConsole.AutoSize = $true
 $tabDash.Controls.Add($lblConsole)
 
 $consoleBox = New-Object System.Windows.Forms.RichTextBox
-$consoleBox.Location = New-Object System.Drawing.Point(14, 296)
-$consoleBox.Size = New-Object System.Drawing.Size(944, 244)
+$consoleBox.Location = New-Object System.Drawing.Point(14, 400)
+$consoleBox.Size = New-Object System.Drawing.Size(944, 140)
 $consoleBox.BackColor = $cCrust
 $consoleBox.ForeColor = $cText
 $consoleBox.Font = $fMono
@@ -401,12 +408,56 @@ $tabDash.Controls.Add($consoleBox)
 function Write-GuiConsole {
     param([string]$Text, [string]$HexColor = "#cdd6f4")
     if ($consoleBox.IsDisposed) { return }
+    if ($Text.Length -gt 4096) { $Text=$Text.Substring(0,4096)+' [truncated]' }
+    if ($consoleBox.TextLength -gt 100000) {
+        # Replacing selected text can be ignored by a read-only RichTextBox.
+        # Reset its text to the bounded tail instead; new lines regain coloring.
+        $consoleBox.Text=$consoleBox.Text.Substring($consoleBox.TextLength-80000)
+    }
     $consoleBox.SelectionStart = $consoleBox.TextLength
     $consoleBox.SelectionLength = 0
     $consoleBox.SelectionColor = [System.Drawing.ColorTranslator]::FromHtml($HexColor)
     $consoleBox.AppendText("$Text`r`n")
     $consoleBox.ScrollToCaret()
 }
+
+$lblMemoryWatch = New-Object System.Windows.Forms.Label
+$lblMemoryWatch.Location = New-Object System.Drawing.Point(14, 298)
+$lblMemoryWatch.Size = New-Object System.Drawing.Size(944, 57)
+$lblMemoryWatch.Font = $fSmall
+$lblMemoryWatch.BackColor = $cMantle
+$lblMemoryWatch.Padding = New-Object System.Windows.Forms.Padding(8)
+$tabDash.Controls.Add($lblMemoryWatch)
+$btnMemoryDetails = New-WBButton -Text 'Investigate Memory' -X 14 -Y 360 -W 210 -H 32 -BgColor $cSurface0 -FgColor $cText
+$btnWatchTray = New-WBButton -Text 'Keep watching in tray' -X 234 -Y 360 -W 230 -H 32 -BgColor $cSurface0 -FgColor $cText
+$btnWindowsMemory = New-WBButton -Text 'Windows memory settings' -X 474 -Y 360 -W 250 -H 32 -BgColor $cSurface0 -FgColor $cText
+$tabDash.Controls.AddRange(@($btnMemoryDetails,$btnWatchTray,$btnWindowsMemory))
+$memoryTray = New-Object System.Windows.Forms.NotifyIcon
+$memoryTray.Icon = [System.Drawing.SystemIcons]::Information
+$memoryTray.Text = 'WinBreathe Memory Watch - starting'
+$memoryTray.Visible = $true
+$trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$trayShow = $trayMenu.Items.Add('Show WinBreathe')
+$trayExit = $trayMenu.Items.Add('Exit and stop Memory Watch')
+$memoryTray.ContextMenuStrip = $trayMenu
+function Show-WBWindow {
+    $form.ShowInTaskbar=$true
+    $form.Show()
+    $form.WindowState=[System.Windows.Forms.FormWindowState]::Normal
+    $form.Activate()
+}
+$trayShow.Add_Click({Show-WBWindow})
+$memoryTray.Add_DoubleClick({Show-WBWindow})
+$memoryTray.Add_BalloonTipClicked({Show-WBWindow;$tabs.SelectedTab=$tabDash})
+$trayExit.Add_Click({$form.Close()})
+$btnWatchTray.Add_Click({$form.WindowState=[System.Windows.Forms.FormWindowState]::Minimized})
+$form.Add_Resize({
+    if($form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized){$form.ShowInTaskbar=$false;$form.Hide()}
+})
+$btnWindowsMemory.Add_Click({
+    Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'SystemPropertiesAdvanced.exe') -ErrorAction SilentlyContinue
+    Write-GuiConsole '[INFO] Windows settings: Performance > Settings > Advanced > Virtual memory. Review system-managed paging. No setting was changed by opening this window.'
+})
 
 # ==============================================================================
 # TAB 2: OPTIMIZE TWEAKS (Profile Selector + Per-Tweak Checkboxes + Preview)
@@ -609,10 +660,11 @@ $gridProcs.GridColor = $cSurface0
 $gridProcs.RowTemplate.Height = 28
 
 foreach ($colSpec in @(
-    @{ Name = "AppName";      Header = "Application / Process"; Width = 280 },
-    @{ Name = "ProcessCount"; Header = "Instances";             Width = 120 },
-    @{ Name = "MemoryMB";     Header = "Working Set (MB)";      Width = 180 },
-    @{ Name = "SafetyStatus"; Header = "Safety Tier";           Width = 340 }
+    @{ Name = "AppName";      Header = "Application / Process"; Width = 240 },
+    @{ Name = "ProcessCount"; Header = "Instances";             Width = 80 },
+    @{ Name = "MemoryMB";     Header = "Working Set (MB)";      Width = 160 },
+    @{ Name = "PrivateCommitMB"; Header = "Private Commit (MB)"; Width = 170 },
+    @{ Name = "SafetyStatus"; Header = "Safety Tier";           Width = 270 }
 )) {
     $c = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
     $c.Name = $colSpec.Name
@@ -626,7 +678,7 @@ function Refresh-ProcsGrid {
     $top = Get-WBTopProcesses -Top 18
     $gridProcs.Rows.Clear()
     foreach ($p in $top) {
-        $idx = $gridProcs.Rows.Add($p.AppName, $p.ProcessCount, "$($p.MemoryMB) MB", $p.SafetyStatus)
+        $idx = $gridProcs.Rows.Add($p.AppName, $p.ProcessCount, "$($p.MemoryMB) MB", "$($p.PrivateCommitMB) MB", $p.SafetyStatus)
         $gridProcs.Rows[$idx].Cells["SafetyStatus"].Style.ForeColor = if ($p.IsProtected) { $cBlue } else { $cGreen }
     }
 }
@@ -652,8 +704,8 @@ $btnKillProc.Add_Click({
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
     if ($confirm -eq [System.Windows.Forms.DialogResult]::Yes) {
-        Stop-WBAppGroup -AppName $appName | Out-Null
-        Write-GuiConsole "[OK] Terminated application group: $appName" "#a6e3a1"
+        if(Stop-WBAppGroup -AppName $appName){Write-GuiConsole "[OK] Terminated application group: $appName" "#a6e3a1"}
+        else{Write-GuiConsole "[WARN] Could not end all requested instances of $appName. Review the error details." '#f9e2af'}
         Refresh-ProcsGrid
     }
 })
@@ -836,44 +888,39 @@ $helpBox.Font = $fBody
 $helpBox.ReadOnly = $true
 $helpBox.BorderStyle = "None"
 $helpBox.Text = @"
-WINBREATHE v2.1.2 - UNIVERSAL WINDOWS ADAPTIVE ENGINE (7 | 8.1 | 10 | 11)
+WINBREATHE v2.2.0 - MEMORY WATCH AND WINDOWS SETTINGS
 
-1. AUTOMATIC OS & HARDWARE DETECTION
-   - WinBreathe inspects your exact Windows build and storage type at launch and tailors tweaks:
-     * Windows 7  : SuperFetch & Prefetcher boot-only (fixes 100% HDD thrashing), DWM Aero glass RAM trimming, NTFS Last-Access write churn disabled, Application Experience & WER stopped, contiguous pagefile locked.
-     * Windows 8.1: SuperFetch & Prefetcher boot-only, NTFS Last-Access churn disabled, Program Compatibility Assistant stopped, contiguous pagefile locked.
-     * Windows 10 : In-RAM Memory Compression + Page Combining enabled, DiagTrack silenced, contiguous pagefile locked, browser background bloat cut.
-     * Windows 11 : Everything in Win10 + Windows Copilot disabled, Windows 11 Widgets board WebView2 background daemon stopped, modern telemetry silenced.
+MEMORY WATCH
+- Runs every three seconds while this window is open or minimized to its tray icon.
+- Watches physical RAM, total memory commitment and Windows kernel pools.
+- Choose Keep watching in tray to hide the window; double-click the tray icon to return.
+- Closing WinBreathe stops monitoring. No startup task or service is installed.
+- Warnings are advisory. Windows may suppress notifications. A driver leak can keep growing even if you close apps, so alerts cannot guarantee crash prevention.
 
-2. HARDWARE-ADAPTIVE PROFILES
-   - Conservative : Zero-impact browser background cuts and memory compression check. Ideal for 16 GB+ SSD PCs.
-   - Balanced     : Recommended for 8-12 GB RAM laptops and HDDs. Locks Edge/Chrome background bloat, disables Widgets/Telemetry, enables Memory Compression + Page Combining (Win10/11), and locks a contiguous pagefile.
-   - Aggressive   : For 4-6 GB RAM or heavy disk load. Adds Store background app restrictions and disables transparency effects.
+WHEN MEMORY PRESSURE IS HIGH
+- Save your work and pause new memory-heavy tasks.
+- Choose Investigate Memory for recent Windows exhaustion/restart evidence.
+- Large kernel pools need driver/filter investigation. An allocation tag alone does not prove which component is responsible.
+- Windows memory settings opens Advanced System Properties. Review Performance > Settings > Advanced > Virtual memory with your administrator. More paging headroom may delay exhaustion; it does not repair a leak.
 
-3. TRUE SNAPSHOT UNDO vs. STOCK WINDOWS RESET
-   - Before WinBreathe applies changes, it captures your exact current registry values, service startup types, MMAgent flags, and pagefile settings to:
-     %ProgramFiles%\WinBreathe-State\<your SID>\latest.json (admin access required)
-   - Clicking 'Undo (Restore Backup)' restores your exact prior state (including removing policy keys that did not exist before).
-   - Generic factory reset and new boot guard installs are unavailable in this security patch.
-   - Memory Check never terminates apps. Older snapshots require manual review; they are not automatically restored.
+REVIEW AND APPLY SETTINGS
+- Choose a profile, inspect its individual changes and use Preview Selected first.
+- A protected backup is mandatory. Live optimization is deferred under critical or unavailable memory readings.
+- Some policies require administrator access or an application restart; Windows may deny a write. Failed tweaks remain visible.
+- Applying a profile does not close apps, purge standby memory or trim working sets.
+- Pagefile resizing and legacy tuning remain opt-in. No RAM saving or speed increase is guaranteed.
 
-4. TIER-1 PROTECTED PROCESSES (NEVER TOUCHED)
-   - WinBreathe never calls EmptyWorkingSet() (which forces active memory onto slow disks) and never terminates:
-     * Windows Kernel, Explorer, DWM, Audio, or Windows Defender (MsMpEng)
-     * VPN & Network Tunnels (OpenVPN Connect, WireGuard, Tailscale)
-     * AI & Developer Stacks (Antigravity, ChatGPT, Codex, Claude, VS Code, Cursor, Node.js, Python, Git)
+BACKUPS AND LIMITS
+- New snapshots use Program Files\WinBreathe-State under your user SID.
+- Undo restores a valid protected snapshot; generic factory reset is unavailable.
+- New Update Guard installation is unavailable. Existing tasks can be explicitly removed.
+- Windows 7/8.1 support remains experimental and requires PowerShell 5.1 and a compatible .NET Framework.
 
-5. WINDOWS SEARCH INDEXER (WSearch) IS OPT-IN
-   - Disabling Windows Search stops background disk indexing on mechanical HDDs, but also disables instant file search in Start and Outlook.
-   - Therefore, 'svc.wsearch' is unchecked by default in all profiles. Only check it in the 'Optimize Tweaks' tab if you use an alternative file searcher such as Voidtools Everything.
-
-6. COMMAND-LINE AUTOMATION (src\WinBreathe.ps1)
-   - Preview only (Dry-Run) : .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
-   - Target another OS mode : .\src\WinBreathe.ps1 -PreviewOS Win7
-   - Apply Balanced Profile : .\src\WinBreathe.ps1 -Profile Balanced
-   - Live Drift Status      : .\src\WinBreathe.ps1 -Status
-   - Undo from Snapshot     : .\src\WinBreathe.ps1 -Undo
-   - Export HTML/MD Report  : .\src\WinBreathe.ps1 -ExportReport
+REPORTS AND DIAGNOSTICS
+- Export Report presents a plain-language explanation before technical readings.
+- Memory Watch retains two small numeric journal files in LocalAppData\WinBreathe.
+- Private Commit is memory promised to an app, not physical RAM or guaranteed recoverable memory. Working sets contain shared pages.
+- CLI: -Status, -MemoryStatus, -Profile Balanced -WhatIf, -ExportReport, -Undo.
 "@
 $tabHelp.Controls.Add($helpBox)
 
@@ -1069,7 +1116,29 @@ $btnResetDef.Add_Click({
 # Live Telemetry Timer (3s interval) & Deterministic Cleanup (WB-05)
 # ==============================================================================
 function Update-DashboardMetrics {
-    $snap = Get-WBMemorySnapshot
+    try { $snap = Get-WBMemorySnapshot -ErrorAction Stop; $script:TelemetryErrorShown=$false }
+    catch {
+        $snap=[pscustomobject]@{}
+        if(-not $script:TelemetryErrorShown){Write-GuiConsole '[WARN] Memory reading unavailable. Memory Watch cannot assess risk.' '#f9e2af';$script:TelemetryErrorShown=$true}
+    }
+    $watch=Update-WBMemoryWatch -State $script:MemoryWatch -Snapshot $snap
+    $col=switch($watch.Level){'Critical'{$cRed};'Warning'{$cYellow};'Unknown'{$cPeach};default{$cTeal}}
+    $lblMemoryWatch.ForeColor=$col
+    $memoryTray.Text="WinBreathe Memory Watch - $($watch.Level)"
+    $memoryTray.Icon=if($watch.Level -in @('Critical','Warning','Unknown')){[System.Drawing.SystemIcons]::Warning}else{[System.Drawing.SystemIcons]::Information}
+    $detail=if($watch.Reading.KernelConcern){'Large kernel pools: investigate drivers/filters. Browser tweaks cannot repair a kernel leak.'}
+        elseif($watch.Level -ne $watch.Reading.Level -and $watch.Level -ne 'Unknown'){'Waiting for stable recovery before clearing the alert.'}
+        else{switch($watch.Level){'Critical'{'Save work now and pause new workloads.'};'Warning'{'Save work and avoid starting more memory-heavy tasks.'};'Unknown'{'Memory reading unavailable. Risk cannot be assessed.'};default{'Memory headroom is available at this reading.'}}}
+    $lblMemoryWatch.Text="Memory Watch: $($watch.Level). $detail`r`nAlerts only; no automatic app closing or crash-prevention guarantee. Closing WinBreathe stops monitoring."
+    if($watch.Notify){
+        Write-GuiConsole ("[WARN] Memory Watch: $($watch.Level). Commit $($watch.Reading.CommitPercent)% used; $($watch.Reading.CommitHeadroomMB) MB headroom. $detail") '#f9e2af'
+        $memoryTray.ShowBalloonTip(12000,"Memory $($watch.Level)",("$detail Save work and pause new workloads."),[System.Windows.Forms.ToolTipIcon]::Warning)
+    }
+    if($watch.ShouldJournal){
+        $saved=Write-WBMemoryJournal -Path $script:MemoryJournalPath -Snapshot $snap -Level $watch.Level
+        if(-not $saved -and -not $script:JournalWarningShown){Write-GuiConsole '[WARN] Memory history could not be saved; live readings remain available.' '#f9e2af';$script:JournalWarningShown=$true}
+    }
+    if($watch.Reading.Level -eq 'Unknown'){return}
     $script:LastSnap = $snap
     $script:RamHistory.Add([int]$snap.LoadPercent)
     $script:UsedHistory.Add([int]$snap.UsedRAMMB)
@@ -1085,6 +1154,7 @@ $telemetryTimer = New-Object System.Windows.Forms.Timer
 $telemetryTimer.Interval = 3000
 $telemetryTimer.Add_Tick({ Update-DashboardMetrics })
 $telemetryTimer.Start()
+$btnMemoryDetails.Add_Click({Start-WBAsyncCommand -CliArguments '-MemoryStatus' -BannerText 'Reading commit, kernel pools and recent Windows memory/restart events...'})
 
 # Initial Data Load
 Refresh-TweaksGrid
@@ -1093,10 +1163,11 @@ Refresh-StartupGrid
 Refresh-StatusTab
 Update-DashboardMetrics
 
-Write-GuiConsole "WinBreathe v2.1.2 initialized." "#89b4fa"
+Write-GuiConsole "WinBreathe v2.2.0 initialized." "#89b4fa"
 Write-GuiConsole "Detected: $($sysProfile.OSCaption) | $($sysProfile.TotalRAMMB) MB RAM | $($sysProfile.DiskModel) ($($sysProfile.DiskMediaType))" "#94e2d5"
 Write-GuiConsole "Recommended Profile: $($sysProfile.RecommendedProfile) | Tier-1 Protected Processes Active." "#a6e3a1"
 Write-GuiConsole "Tip: Use 'Optimize Tweaks' -> 'Preview Selected (-WhatIf)' to inspect changes before applying." "#cdd6f4"
+Write-GuiConsole 'Memory Watch is active. Use Keep watching in tray for background alerts. It cannot repair a driver leak or guarantee crash prevention.' '#f9e2af'
 
 $form.Add_FormClosing({
     param($sender, $eventArgs)
@@ -1107,10 +1178,15 @@ $form.Add_FormClosing({
 })
 
 try {
-    [void]$form.ShowDialog()
+    # A modal ShowDialog loop can end when the form is hidden to the tray.
+    # Run the main application loop until Close, so hidden monitoring survives.
+    [System.Windows.Forms.Application]::Run($form)
 } finally {
     $telemetryTimer.Stop()
     $telemetryTimer.Dispose()
+    $memoryTray.Visible=$false
+    $memoryTray.Dispose()
+    $trayMenu.Dispose()
     $procTimer.Stop()
     $procTimer.Dispose()
     if ($null -ne $script:ActiveProcess) {

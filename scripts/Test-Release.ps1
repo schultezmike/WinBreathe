@@ -9,7 +9,9 @@ function Invoke-Check([string]$Path, [string[]]$Arguments = @()) {
     & $powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root $Path) @Arguments
     if ($LASTEXITCODE -ne 0) { throw "Check failed: $Path (exit $LASTEXITCODE)" }
 }
-foreach ($name in @('Compatibility','Report','SnapshotFile','Security','Catalog')) { Invoke-Check "tests/$name.Tests.ps1" }
+foreach ($name in @('Compatibility','Report','SnapshotFile','Security','Catalog','MemoryWatch','GuiLayout')) { Invoke-Check "tests/$name.Tests.ps1" }
+Invoke-Check 'src/WinBreathe.ps1' @('-Status')
+Invoke-Check 'src/WinBreathe.ps1' @('-Profile','Balanced','-WhatIf')
 if ($Build) {
     Invoke-Check 'Compile.ps1'
     Invoke-Check 'tests/Launcher.Tests.ps1'
