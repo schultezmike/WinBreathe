@@ -1,8 +1,8 @@
 ﻿{
     "Version":  "2.2.0",
-    "RepositoryCommit":  "f2a6f6b3d69cd3a78dcf044ed56625d911053f54",
-    "WorkingTreeDirty":  true,
-    "BuiltAtUTC":  "2026-10-27T17:28:56.2114695Z",
+    "RepositoryCommit":  "a701c8a394ad114a1dcefd40aaf95b81fb93d9ff",
+    "WorkingTreeDirty":  false,
+    "BuiltAtUTC":  "2026-10-27T17:33:30.5904371Z",
     "Sources":  [
                     {
                         "Path":  "assets/banner.png",
@@ -54,7 +54,7 @@
                     },
                     {
                         "Path":  "docs/INVESTIGATION-2026-10-26.md",
-                        "SHA256":  "c26922b7db76fd335223ca1d97b787217106e71499cef90ca1bb393b8268e57f"
+                        "SHA256":  "811a54d484d23a211181fe01e653878156da00d67501325c2dbaf5dc678ea308"
                     },
                     {
                         "Path":  "docs/RELEASE-2.1.0.md",
@@ -66,7 +66,7 @@
                     },
                     {
                         "Path":  "docs/RELEASE-2.2.0.md",
-                        "SHA256":  "541687eaa83468d2e29ce7e9e0d55766620e22d76280f142f77074f41373a6c7"
+                        "SHA256":  "e5ca0ebc4cac4817daf78945e7c0b9f4692319da8959417313100022c0d1c423"
                     },
                     {
                         "Path":  "docs/TWEAKS.md",
@@ -110,7 +110,7 @@
                     },
                     {
                         "Path":  "src/WinBreathe.MemoryWatch.ps1",
-                        "SHA256":  "e29e86a10bbcf6076fa1a0f6b61eef840abaf3b9dae0b6e5d5067afda1084d8b"
+                        "SHA256":  "5d22790793cea7704bd5c8bb49f2a9a66220ab1ddb0ad2b844a151717dc3a3db"
                     },
                     {
                         "Path":  "src/WinBreathe.ProcessOutput.cs",
@@ -130,7 +130,7 @@
                     },
                     {
                         "Path":  "tests/GuiLayout.Tests.ps1",
-                        "SHA256":  "e65792631d1b77765e011e19c64a1b185820a1d149f365e4246c9eb956848311"
+                        "SHA256":  "5716b5cd4e9b691683ae28dc143b52323d7a641b4ca9fe1b93162b4b5f6d382c"
                     },
                     {
                         "Path":  "tests/Launcher.Tests.ps1",
@@ -138,7 +138,7 @@
                     },
                     {
                         "Path":  "tests/MemoryWatch.Tests.ps1",
-                        "SHA256":  "d0e7b792efc1603ae5ca06be9d9035487b84011c79ac9ae52358087d3787df27"
+                        "SHA256":  "699089c4d17e9cfcb5bd8c11f95a5904ad3ae03829958f30898cbf2648e4e7cf"
                     },
                     {
                         "Path":  "tests/Package.Tests.ps1",
