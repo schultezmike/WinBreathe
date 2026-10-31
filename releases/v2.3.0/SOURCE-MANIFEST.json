@@ -1,8 +1,8 @@
 ﻿{
     "Version":  "2.3.0",
-    "RepositoryCommit":  "ff3fce25d4fce0cc3385c2539b85b3147fd7467c",
-    "WorkingTreeDirty":  true,
-    "BuiltAtUTC":  "2026-10-31T06:29:28.1412951Z",
+    "RepositoryCommit":  "d6a7284e9ec21560e33f153a64a98266590e0ff3",
+    "WorkingTreeDirty":  false,
+    "BuiltAtUTC":  "2026-10-31T06:34:25.2577407Z",
     "Sources":  [
                     {
                         "Path":  "assets/banner.png",
@@ -70,7 +70,7 @@
                     },
                     {
                         "Path":  "docs/RELEASE-2.3.0.md",
-                        "SHA256":  "febefe31e7898d4099515bd563003dafe7c93506dd02e3ca6591e14d5eecdb02"
+                        "SHA256":  "d09812ffa19793196df6f761ec3f5ff957d5c2482afef062c28c13def64a2994"
                     },
                     {
                         "Path":  "docs/TWEAKS.md",
@@ -114,11 +114,11 @@
                     },
                     {
                         "Path":  "src/WinBreathe.MemoryRelief.cs",
-                        "SHA256":  "560fdc320c022755fa1c825351392d3bf172207443a76f61dc3a13c3961d1188"
+                        "SHA256":  "4a56f30dad5509c55bcf4dc9c4b9d51337c544a9992da8e8ebb154e4de1ea7b7"
                     },
                     {
                         "Path":  "src/WinBreathe.MemoryRelief.ps1",
-                        "SHA256":  "11ce8a8f2bb718d9dd70c9f6a79384d5c39a20c65a9a46aa988f6a6fdeec3f0a"
+                        "SHA256":  "20e7a9cdcf39b513d05fc1267485705e3f2abf3e4186455bb0df3d85e0ec709d"
                     },
                     {
                         "Path":  "src/WinBreathe.MemoryWatch.ps1",
@@ -150,7 +150,7 @@
                     },
                     {
                         "Path":  "tests/MemoryRelief.Tests.ps1",
-                        "SHA256":  "2f776132d8aede6d0640f3d268e3070ff4370e15bb0e04356cb764bbeec7c014"
+                        "SHA256":  "e9b3de22b59757b028c5bf80f35531b2940d7cf9bccb90f3d83fec0ddfe8855b"
                     },
                     {
                         "Path":  "tests/MemoryWatch.Tests.ps1",
