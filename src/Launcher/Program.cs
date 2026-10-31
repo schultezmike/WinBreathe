@@ -15,8 +15,8 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("WinBreathe - Windows 11 Memory & Latency Optimizer")]
-[assembly: AssemblyDescription("Hardware-Adaptive Windows 11 Memory & Latency Optimizer for 4-16 GB RAM PCs, HDDs & AI Stacks")]
+[assembly: AssemblyTitle("WinBreathe - Adaptive Windows Memory Watch and Relief")]
+[assembly: AssemblyDescription("Memory pressure monitoring and controlled relief for Windows and protected development workloads")]
 [assembly: AssemblyCompany("WinBreathe Open Source Project")]
 [assembly: AssemblyProduct("WinBreathe")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 WinBreathe Contributors (MIT License)")]
@@ -24,8 +24,8 @@ using System.Windows.Forms;
 [assembly: AssemblyVersion("1.1.0.0")]
 [assembly: AssemblyFileVersion("1.1.0.0")]
 #else
-[assembly: AssemblyVersion("2.2.0.0")]
-[assembly: AssemblyFileVersion("2.2.0.0")]
+[assembly: AssemblyVersion("2.3.0.0")]
+[assembly: AssemblyFileVersion("2.3.0.0")]
 #endif
 
 namespace WinBreatheHost
@@ -52,7 +52,7 @@ namespace WinBreatheHost
 #if V1_BUILD
                 string versionTag = "v1.1.0";
 #else
-                string versionTag = "v2.2.0";
+                string versionTag = "v2.3.0";
 #endif
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
                 runtimeDir = PrepareRuntimeDirectory(exeDir, versionTag);
@@ -207,6 +207,8 @@ namespace WinBreatheHost
             ExtractResource(asm, "WinBreathe.ProcessOutput.cs", Path.Combine(baseLocal, "src", "WinBreathe.ProcessOutput.cs"));
             ExtractResource(asm, "WinBreathe.Engine.psm1", Path.Combine(baseLocal, "src", "WinBreathe.Engine.psm1"));
             ExtractResource(asm, "WinBreathe.MemoryWatch.ps1", Path.Combine(baseLocal, "src", "WinBreathe.MemoryWatch.ps1"));
+            ExtractResource(asm, "WinBreathe.MemoryRelief.ps1", Path.Combine(baseLocal, "src", "WinBreathe.MemoryRelief.ps1"));
+            ExtractResource(asm, "WinBreathe.MemoryRelief.cs", Path.Combine(baseLocal, "src", "WinBreathe.MemoryRelief.cs"));
             ExtractResource(asm, "WinBreathe.ps1", Path.Combine(baseLocal, "src", "WinBreathe.ps1"));
             ExtractResource(asm, "WinBreathe.GUI.ps1", Path.Combine(baseLocal, "src", "WinBreathe.GUI.ps1"));
             ExtractResource(asm, "tweaks.json", Path.Combine(baseLocal, "config", "tweaks.json"));

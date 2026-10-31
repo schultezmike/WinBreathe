@@ -1,6 +1,16 @@
-# WinBreathe v2.2.0 - Memory Watch
+# WinBreathe v2.3.0 - Memory Watch and controlled RAM relief
 
-A native Windows memory monitor and settings utility. Version 2.2.0 adds **Memory Watch** for commit exhaustion and unusually large kernel pools. It warns and records evidence while open or minimized; it cannot guarantee crash prevention or repair a driver leak.
+A native Windows memory monitor and settings utility. Version 2.3.0 adds controlled relief of idle optional Windows hosts and earlier growth warnings. AI, ABOS and VPN workloads are protected. It cannot guarantee crash prevention or repair a driver leak.
+
+## New in 2.3.0
+
+- **RAM Relief** trims verified idle Search/Widgets hosts without terminating them; results distinguish available RAM from committed allocations.
+- Opt-in **Auto RAM relief** acts on sustained low RAM with cooldowns and backs off when ineffective. It never trims ChatGPT, ABOS, VPNs or generic WebViews.
+- Growth warnings look for sustained increases before fixed limits are reached.
+- Closing the window keeps Memory Watch in the tray; use the tray's explicit Exit action to stop it. Hidden charts stop repainting.
+- Hard protection for development helpers and protected process ancestry.
+
+See [2.3.0 changes and limits](docs/RELEASE-2.3.0.md). Working-set relief can be temporary and can cause pages to be read back from disk. It is not a permanent cure for allocation growth.
 
 ## What's new in 2.2.0
 
@@ -13,9 +23,9 @@ See [the v2.2.0 notes](docs/RELEASE-2.2.0.md) and [the October 26 restart invest
 
 ## Published package
 
-[Download v2.2.0](https://github.com/schultezmike/WinBreathe/releases/tag/v2.2.0) or browse the [package files](releases/v2.2.0/). The release includes an x64 executable, portable ZIP, SHA-256 checksums, release notes and source manifest.
+[Download v2.3.0](https://github.com/schultezmike/WinBreathe/releases/tag/v2.3.0) or browse the [package files](releases/v2.3.0/). The release includes an x64 executable, portable ZIP, SHA-256 checksums, release notes and source manifest.
 
-Versions 2.0.0 and 2.1.0 are retired because they lack later safety fixes. Their Git tags and source history are retained. Version 2.1.2 is superseded by this update; it did not include Memory Watch or the bounded console and chart fixes. [Version 1.1.0](https://github.com/schultezmike/WinBreathe/releases/tag/v1.1.0) remains available as a legacy release; keeping it available does not certify its security or compatibility.
+Versions 2.0.0, 2.1.0 and 2.1.2 are retired because they lack later safety fixes. Version 2.2.0 is superseded by 2.3.0, which adds controlled relief, growth warnings and protection against very large unterminated task-output lines. Historical tags, source and packages are retained for recovery; older package directories are not recommended downloads. [Version 1.1.0](https://github.com/schultezmike/WinBreathe/releases/tag/v1.1.0) remains available as a legacy release; keeping it available does not certify its security or compatibility.
 
 ## What's new in 2.1.2
 
@@ -43,6 +53,9 @@ Windows x64, Windows PowerShell 5.1 and a compatible .NET Framework runtime. Win
 .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
 # Read memory without terminating apps
 .\src\WinBreathe.ps1 -Flush
+# Controlled manual relief, or keep monitoring in the tray with auto relief
+.\src\WinBreathe.ps1 -RelieveMemory
+.\src\WinBreathe.ps1 -Watch
 # Export a report
 .\src\WinBreathe.ps1 -ExportReport
 # Launch the source GUI (trust this source folder before running elevated)
@@ -51,6 +64,8 @@ Windows x64, Windows PowerShell 5.1 and a compatible .NET Framework runtime. Win
 
 Apply only settings you have reviewed. A backup is mandatory. Some changes require an app restart, sign-out or reboot; they do not necessarily reduce current RAM use.
 
+For optional sign-in startup, create a shortcut to the downloaded executable with `-Watch` as its argument and put it in your current-user Startup folder. Keep the executable at that location. Startup is opt-in: WinBreathe does not register itself or a service. Windows can delay startup applications, and hardware/provider initialization can delay the first reading. Confirm the tray monitor is active before relying on its alerts.
+
 ## Validation
 
 ```powershell
@@ -58,5 +73,7 @@ Apply only settings you have reviewed. A backup is mandatory. Some changes requi
 ```
 
 Tests use synthetic state, disposable files and non-mutating preview invocations, including critical commit, kernel-pool growth, recovery, invalid telemetry, event parsing and bounded history/output. Elevated Undo, legacy OS execution, power-loss behavior and long-session memory-pressure behavior remain incompletely tested. GitHub checks verify the tested code paths and package, not protection from every crash.
+
+Publication requires passing local checks, pull-request and main-branch GitHub checks, and the tagged build. The tagged workflow creates a draft; downloaded assets are checked against their hashes, source manifest and embedded resources before publication. Superseded v2 releases are retired recoverably only after the new downloads are verified. Version 1.1.0 is retained.
 
 Licensed under MIT. Security reports: use GitHub private security advisories.

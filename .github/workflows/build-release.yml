@@ -3,7 +3,7 @@ name: Build Standalone Executables & Release Packages
 on:
   push:
     branches: [ main, master ]
-    tags: [ 'v2.2.0' ]
+    tags: [ 'v2.3.0' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -26,12 +26,12 @@ jobs:
       - name: Upload tested release files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: WinBreathe-v2.2.0
+          name: WinBreathe-v2.3.0
           if-no-files-found: error
-          path: releases/v2.2.0/*
+          path: releases/v2.3.0/*
 
   publish:
-    if: github.event_name == 'push' && github.ref == 'refs/tags/v2.2.0'
+    if: github.event_name == 'push' && github.ref == 'refs/tags/v2.3.0'
     needs: build-exe
     runs-on: windows-latest
     timeout-minutes: 10
@@ -41,19 +41,20 @@ jobs:
       - name: Download the tested build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: WinBreathe-v2.2.0
+          name: WinBreathe-v2.3.0
           path: release
-      - name: Publish tested v2.2.0 Memory Watch release
+      - name: Prepare tested v2.3.0 release draft
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: WinBreathe v2.2.0 - Memory Watch
+          name: WinBreathe v2.3.0 - Controlled RAM Relief
+          draft: true
           prerelease: false
-          make_latest: true
+          make_latest: false
           fail_on_unmatched_files: true
           body_path: release/RELEASE-NOTES.md
           files: |
-            release/WinBreathe-v2.2.0-x64.exe
-            release/WinBreathe-v2.2.0-Portable.zip
+            release/WinBreathe-v2.3.0-x64.exe
+            release/WinBreathe-v2.3.0-Portable.zip
             release/SHA256SUMS.txt
             release/SOURCE-MANIFEST.json
             release/RELEASE-NOTES.md

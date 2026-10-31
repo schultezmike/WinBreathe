@@ -14,6 +14,7 @@ $source=$source.Replace('$scriptDir  = Split-Path -Parent $MyInvocation.MyComman
 $source=$source.Replace('$ErrorActionPreference = "SilentlyContinue"','$ErrorActionPreference = "Stop"')
 $fixtureFunctions=@'
 function Get-WBMemorySnapshot { $script:GuiFixtureMemory }
+function Invoke-WBMemoryRelief { param($State,$Snapshot,[switch]$Automatic,[switch]$ObserveOnly,[switch]$WhatIf,[switch]$Confirm) [pscustomobject]@{Attempted=$false} }
 function Test-WBAdmin { $false }
 function Get-WBSystemProfile { [pscustomobject]@{OSCaption='SYNTHETIC LAYOUT FIXTURE';OSFamily='Win11';TotalRAMMB=8192;UsedRAMMB=5692;AvailRAMMB=2500;LoadPercent=70;DiskMediaType='HDD';DiskModel='TEST ONLY';FreeDiskGB=100;RecommendedProfile='Balanced'} }
 function Get-WBPaths { [pscustomobject]@{DataDir=$script:GuiFixturePath;LatestBackup=(Join-Path $script:GuiFixturePath 'none.json')} }
@@ -31,10 +32,11 @@ $source=[regex]::Replace($source,'(?m)^.*\$memoryTray\.ShowBalloonTip.*$','# Bal
 $checks=@'
     $form.CreateControl()
     $form.PerformLayout()
-    if($form.Text -notmatch '2.2.0'){throw 'Incorrect GUI version'}
+    if($form.Text -notmatch '2.3.0'){throw 'Incorrect GUI version'}
     if($btnMemoryDetails.Text -ne 'Investigate Memory' -or $btnWatchTray.Text -ne 'Keep watching in tray'){throw 'Missing monitoring actions'}
     if($lblMemoryWatch.Bounds.IntersectsWith($btnWatchTray.Bounds) -or $consoleBox.Bounds.IntersectsWith($btnMemoryDetails.Bounds)){throw 'Memory Watch controls overlap'}
-    foreach($control in @($lblMemoryWatch,$btnMemoryDetails,$btnWatchTray,$btnWindowsMemory,$consoleBox)) {
+    if($btnQuickFlush.Text -ne 'RAM Relief' -or $chkAutoRelief.Checked){throw 'Relief action missing or auto relief enabled without opt-in'}
+    foreach($control in @($lblMemoryWatch,$btnMemoryDetails,$btnWatchTray,$btnWindowsMemory,$chkAutoRelief,$consoleBox)) {
         if($control.Left -lt 0 -or $control.Top -lt 0 -or $control.Right -gt 970 -or $control.Bottom -gt 545){throw 'Monitoring controls exceed the intended dashboard area'}
     }
     $script:GuiFixtureMemory=[pscustomobject]@{LoadPercent=85;TotalRAMMB=8192;UsedRAMMB=7000;AvailRAMMB=1192;CommitTotalMB=20000;CommitUsedMB=19760;CommitAvailMB=240;KernelPagedMB=10000;KernelNonpagedMB=400}
@@ -57,10 +59,12 @@ $checks=@'
     $form.Add_Shown({$form.Hide()})
     $hiddenTimer=New-Object Windows.Forms.Timer
     $hiddenTimer.Interval=50
-    $hiddenTimer.Add_Tick({$script:HiddenTicks++;if($script:HiddenTicks -ge 3){$form.Close()}})
+    $hiddenTimer.Add_Tick({$script:HiddenTicks++;if($script:HiddenTicks -eq 1){$form.Close();if(-not $form.IsDisposed -and $form.WindowState -eq 'Minimized'){$script:ClosePreservedWatch=$true}};if($script:HiddenTicks -ge 3){$script:ExitRequested=$true;$form.Close()}})
+    $script:ClosePreservedWatch=$false
     $hiddenTimer.Start()
     try{[Windows.Forms.Application]::Run($form)}finally{$hiddenTimer.Stop();$hiddenTimer.Dispose()}
     if($script:HiddenTicks -lt 3){throw 'Hiding the window terminated the monitoring message loop'}
+    if(-not $script:ClosePreservedWatch){throw 'Closing the window silently stopped monitoring'}
     Write-Host 'PASS: hidden main-window message loop continues until explicit Close.'
     Write-Host 'PASS: real GUI construction, action labels, control bounds, critical/unknown displays and bounded console.'
 '@

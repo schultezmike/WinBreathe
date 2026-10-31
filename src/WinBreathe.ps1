@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.2.0)
+# WinBreathe.ps1 - Command-Line Interface & Automation Entrypoint (v2.3.0)
 # Usage Examples:
 #   .\src\WinBreathe.ps1 -GUI
 #   .\src\WinBreathe.ps1 -Profile Balanced -WhatIf
@@ -12,6 +12,7 @@
 
 param(
     [switch]$GUI,
+    [switch]$Watch,
     [ValidateSet("Conservative", "Balanced", "Aggressive")]
     [string]$Profile = "Balanced",
     [string[]]$TweakIds = @(),
@@ -27,6 +28,7 @@ param(
     [switch]$ResetDefaults,
     [switch]$Status,
     [switch]$MemoryStatus,
+    [switch]$RelieveMemory,
     [switch]$Flush,
     [switch]$InstallGuard,
     [switch]$RemoveGuard,
@@ -51,16 +53,18 @@ if (-not [string]::IsNullOrEmpty($TargetOS) -and -not $WhatIf -and -not $Status)
 if ($Help) {
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.2.0 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.3.0 - Universal Windows Memory & Latency Optimizer Help" -ForegroundColor Cyan
     Write-Host "  OS Coverage: Windows 11 | Windows 10 | Windows 8.1 | Windows 7" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  -GUI                              Launch the 6-tab graphical dashboard"
+    Write-Host "  -Watch                            Start in the tray with controlled automatic RAM relief enabled"
     Write-Host "  -Profile <Name>                   Select profile: Conservative, Balanced (default), Aggressive"
     Write-Host "  -PreviewOS <Win7|Win8|Win10|Win11> View tailor-made options and status for that OS"
     Write-Host "  -TweakIds <id1,id2...>            Apply only specific tweak IDs from config/tweaks.json"
     Write-Host "  -WhatIf                           Preview every change without modifying the system"
     Write-Host "  -Status                           Check live tweak drift & hardware telemetry"
     Write-Host "  -MemoryStatus                     Read commit headroom, kernel pools and recent memory/restart events"
+    Write-Host "  -RelieveMemory                    Trim verified idle optional Windows hosts; preserve apps and chats"
     Write-Host "  -Flush                            Read memory without closing apps (legacy alias)"
     Write-Host "  -Snapshot                         Save current registry/service/pagefile state to JSON"
     Write-Host "  -Undo                             Restore exact pre-optimization state from latest snapshot"
@@ -73,17 +77,29 @@ if ($Help) {
 }
 
 # WhatIf is global: alternate action switches must never bypass preview mode.
-if ($WhatIf -and ($GUI -or $Snapshot -or $Undo -or $ResetDefaults -or $Flush -or $InstallGuard -or $RemoveGuard -or $ExportReport -or $MemoryStatus)) {
+if ($WhatIf -and ($GUI -or $Watch -or $Snapshot -or $Undo -or $ResetDefaults -or $Flush -or $InstallGuard -or $RemoveGuard -or $ExportReport -or $MemoryStatus -or $RelieveMemory)) {
     Write-Host '[PREVIEW] The requested action was not executed. No settings or processes were changed.'
     exit 0
 }
-if (@(@($GUI,$Snapshot,$Undo,$ResetDefaults,$Status,$MemoryStatus,$Flush,$InstallGuard,$RemoveGuard,$ExportReport) | Where-Object { $_ }).Count -gt 1) {
+if (@(@($GUI,$Watch,$Snapshot,$Undo,$ResetDefaults,$Status,$MemoryStatus,$Flush,$InstallGuard,$RemoveGuard,$ExportReport,$RelieveMemory) | Where-Object { $_ }).Count -gt 1) {
     Write-Error 'Choose one action at a time.'
     exit 2
 }
-if ($GUI) {
+if ($GUI -or $Watch) {
     $guiPath = Join-Path $PSScriptRoot "WinBreathe.GUI.ps1"
-    & $guiPath
+    & $guiPath -Watch:$Watch
+    exit 0
+}
+
+if ($RelieveMemory) {
+    $reliefState=New-WBReliefState
+    $reading=Get-WBMemorySnapshot
+    [void](Invoke-WBMemoryRelief -State $reliefState -Snapshot $reading -ObserveOnly)
+    Start-Sleep -Seconds 2
+    $result=Invoke-WBMemoryRelief -State $reliefState -Snapshot (Get-WBMemorySnapshot) -Confirm:$false
+    Write-Host $result.Reason
+    foreach($row in $result.Results){Write-Host "$($row.Name): $($row.Status)"}
+    if($result.Attempted){Write-Host "Observed available RAM change: $($result.AvailableChangeMB) MB; commit change: $($result.CommitChangeMB) MB. Other activity can affect these readings."}
     exit 0
 }
 
@@ -122,7 +138,7 @@ if ($Status) {
     $guard = Get-WBUpdateGuardStatus
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
-    Write-Host "  WinBreathe v2.2.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
+    Write-Host "  WinBreathe v2.3.0 - Live System Telemetry & Drift Status" -ForegroundColor Cyan
     Write-Host "======================================================================" -ForegroundColor Cyan
     Write-Host "  OS         : $($sys.OSCaption) (Build $($sys.OSBuild))"
     Write-Host "  RAM Usage  : $($sys.UsedRAMMB) MB / $($sys.TotalRAMMB) MB ($($sys.LoadPercent)% Load | $($sys.AvailRAMMB) MB Free)"

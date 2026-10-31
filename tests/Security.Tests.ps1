@@ -6,7 +6,7 @@ $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $root 'src/WinBreathe.MemoryWatch.ps1')
 $tokens=$null; $errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'src/WinBreathe.Engine.psm1'),[ref]$tokens,[ref]$errors)
-foreach ($name in @('Assert-WBSnapshot','Assert-WBProtectedPath','Get-WBRegistryState','Stop-WBAppGroup','Invoke-WBSafeFlush','Install-WBUpdateGuard','Invoke-WBTweaks','Test-WBTweakCondition','Enter-WBOperation','Exit-WBOperation')) {
+foreach ($name in @('Assert-WBSnapshot','Assert-WBProtectedPath','Get-WBRegistryState','Test-WBProtectedProcessName','Stop-WBAppGroup','Invoke-WBSafeFlush','Install-WBUpdateGuard','Invoke-WBTweaks','Test-WBTweakCondition','Enter-WBOperation','Exit-WBOperation')) {
     $fn=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
     . ([scriptblock]::Create($fn.Extent.Text))
 }
@@ -36,8 +36,36 @@ $script:stops=0
 function Stop-Process { $script:stops++;throw 'Unexpected process termination' }
 function Get-WBMemorySnapshot {[pscustomobject]@{UsedRAMMB=500;LoadPercent=10;AvailRAMMB=4500;TotalRAMMB=5000;CommitUsedMB=7000;CommitTotalMB=16000;KernelPagedMB=300;KernelNonpagedMB=200}}
 Assert (-not (Stop-WBAppGroup '*')) 'Protected process list cannot be bypassed with a wildcard'
+foreach($name in @('ChatGPT','codex-code-mode-host','ABOS-worker','vmmemCmZygote','node_repl','python3','Happ','sing-box','postgres','msedgewebview2','WinBreathe')) {
+    Assert (Test-WBProtectedProcessName $name) "Protected workload: $name"
+    Assert (-not (Stop-WBAppGroup $name)) "Cannot close protected workload: $name"
+}
 Assert (Invoke-WBSafeFlush) 'Legacy flush command is read-only'
 Assert ($script:stops -eq 0) 'Memory check never terminates processes'
+& {
+    # Exercise the ancestry path with synthetic processes, including a positive
+    # control. No real process is discovered or terminated by these checks.
+    $script:ancestryStops=0
+    $script:ancestryTree=@()
+    function Get-Process { [pscustomobject]@{Id=101;ProcessName='fixture-helper';WorkingSet64=1MB} }
+    function Get-CimInstance { $script:ancestryTree }
+    function Stop-Process {
+        [CmdletBinding()]param([Parameter(ValueFromPipeline=$true)]$InputObject)
+        process { $script:ancestryStops++ }
+    }
+    function Node($Id,$Parent,$Name) { [pscustomobject]@{ProcessId=$Id;ParentProcessId=$Parent;Name=$Name} }
+    $script:ancestryTree=@((Node 101 201 'fixture-helper.exe'),(Node 201 0 'codex-worker.exe'))
+    Assert (-not (Stop-WBAppGroup 'fixture-helper')) 'An arbitrary helper owned by Codex cannot be closed'
+    $script:ancestryTree=@((Node 101 201 'fixture-helper.exe'))
+    Assert (-not (Stop-WBAppGroup 'fixture-helper')) 'Missing parent information blocks manual closure'
+    $script:ancestryTree=@((Node 101 201 'fixture-helper.exe'),(Node 201 101 'fixture-parent.exe'))
+    Assert (-not (Stop-WBAppGroup 'fixture-helper')) 'Cyclic ancestry blocks manual closure'
+    function Get-CimInstance { throw 'Synthetic process inventory access denied' }
+    Assert (-not (Stop-WBAppGroup 'fixture-helper') -and $script:ancestryStops -eq 0) 'Unreadable ancestry fails closed without terminating a process'
+    function Get-CimInstance { $script:ancestryTree }
+    $script:ancestryTree=@((Node 101 201 'fixture-helper.exe'),(Node 201 0 'explorer.exe'))
+    Assert ((Stop-WBAppGroup 'fixture-helper') -and $script:ancestryStops -eq 1) 'Verified unprotected desktop app reaches only the mocked termination call'
+}
 Assert (-not (Install-WBUpdateGuard)) 'Privileged task installation fails closed'
 function Get-WBSystemProfile {[pscustomobject]@{OSCaption='Mock';OSFamily='Win11';TotalRAMMB=8192;DiskMediaType='HDD';FreeDiskGB=100}}
 MustReject {Invoke-WBTweaks -TweakIds 'not-a-tweak'} 'Unknown tweak IDs abort without applying the full profile'
@@ -87,7 +115,7 @@ MustReject {Get-WBRegistryState 'MOCK' 'Mock'} 'Unreadable registry key is not r
 # Invoke the real CLI in a child process. Every alternate action with WhatIf
 # must exit before calling any registry/process/service/scheduler routine.
 $ps=Join-Path $PSHOME 'powershell.exe'
-foreach($action in @('-Undo','-ResetDefaults','-Flush','-InstallGuard','-RemoveGuard','-Snapshot','-GUI','-ExportReport','-MemoryStatus')) {
+foreach($action in @('-Undo','-ResetDefaults','-Flush','-InstallGuard','-RemoveGuard','-Snapshot','-GUI','-Watch','-RelieveMemory','-ExportReport','-MemoryStatus')) {
     $output=& $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src/WinBreathe.ps1') $action -WhatIf 2>&1
     Assert ($LASTEXITCODE -eq 0 -and ($output -join '') -match '\[PREVIEW\]') "WhatIf blocks alternate action $action"
 }

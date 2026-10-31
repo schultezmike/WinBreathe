@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# Advisory monitoring only. No process termination, kernel changes or pagefile writes.
+# Pressure assessment and bounded growth history. No system mutations here.
 function Get-WBMemoryPressure {
     param([Parameter(Mandatory=$true)]$Snapshot)
     $valid = $true
@@ -40,7 +40,35 @@ function Get-WBMemoryPressure {
 }
 
 function New-WBMemoryWatchState {
-    [pscustomobject]@{Level='Unknown';Pending='';PendingSince=[DateTimeOffset]::MinValue;LastSample=[DateTimeOffset]::MinValue;LastAlert=[DateTimeOffset]::MinValue;LastJournal=[DateTimeOffset]::MinValue}
+    [pscustomobject]@{Level='Unknown';Pending='';PendingSince=[DateTimeOffset]::MinValue;LastSample=[DateTimeOffset]::MinValue;LastAlert=[DateTimeOffset]::MinValue;LastJournal=[DateTimeOffset]::MinValue;Samples=(New-Object 'Collections.Generic.List[object]')}
+}
+
+function Get-WBMemoryTrend {
+    param([Parameter(Mandatory=$true)]$Samples)
+    $result=[pscustomobject]@{Ready=$false;CommitMBPerMinute=0.0;KernelMBPerMinute=0.0;MinutesToCommitLimit=$null;Warn=$false;Summary=''}
+    if($Samples.Count -lt 5){return $result}
+    $first=$Samples[0];$last=$Samples[$Samples.Count-1]
+    $minutes=($last.Time-$first.Time).TotalMinutes
+    if($minutes -lt 1){return $result}
+    # Both halves must grow: a single allocation spike is not a sustained trend.
+    $middle=$Samples[[int][math]::Floor(($Samples.Count-1)/2)]
+    $result.Ready=$true
+    $commit=($last.Commit-$first.Commit)/$minutes
+    $kernel=($last.Kernel-$first.Kernel)/$minutes
+    $result.CommitMBPerMinute=[math]::Round($commit,1)
+    $result.KernelMBPerMinute=[math]::Round($kernel,1)
+    if($commit -ge 64 -and $last.Commit -gt $middle.Commit -and $middle.Commit -gt $first.Commit) {
+        $result.MinutesToCommitLimit=[math]::Round(($last.Limit-$last.Commit)/$commit,1)
+        if($last.Commit/$last.Limit -ge 0.60 -and $result.MinutesToCommitLimit -le 15) {
+            $result.Warn=$true
+            $result.Summary="Commit is growing about $($result.CommitMBPerMinute) MB/min; about $($result.MinutesToCommitLimit) min of headroom at this rate. This is an estimate, not a crash prediction."
+        }
+    }
+    if($kernel -ge 64 -and $last.Kernel-$first.Kernel -ge 256 -and $last.Kernel -ge 1024 -and $last.Kernel -gt $middle.Kernel -and $middle.Kernel -gt $first.Kernel) {
+        $result.Warn=$true
+        $result.Summary='Windows kernel memory is steadily growing. Save work and investigate drivers/filters; app flushing cannot release these allocations.'
+    }
+    return $result
 }
 
 function Update-WBMemoryWatch {
@@ -48,8 +76,17 @@ function Update-WBMemoryWatch {
     $reading=Get-WBMemoryPressure $Snapshot
     $previous=$State.Level
     $gap=($Now-$State.LastSample).TotalSeconds
-    if ($State.LastSample -ne [DateTimeOffset]::MinValue -and ($gap -gt 30 -or $gap -lt 0)) { $State.Pending='';$State.Level='Unknown' }
+    if ($State.LastSample -ne [DateTimeOffset]::MinValue -and ($gap -gt 30 -or $gap -le 0)) { $State.Pending='';$State.Level='Unknown';$State.Samples.Clear() }
     $State.LastSample=$Now
+    if($reading.Level -eq 'Unknown'){$State.Samples.Clear()}
+    else {
+        # A changed commit limit invalidates the old time-to-limit projection.
+        if($State.Samples.Count -gt 0 -and $State.Samples[$State.Samples.Count-1].Limit -ne $Snapshot.CommitTotalMB){$State.Samples.Clear()}
+        $State.Samples.Add([pscustomobject]@{Time=$Now;Commit=[double]$Snapshot.CommitUsedMB;Limit=[double]$Snapshot.CommitTotalMB;Kernel=([double]$Snapshot.KernelPagedMB+[double]$Snapshot.KernelNonpagedMB)})
+        while($State.Samples.Count -gt 101 -or ($State.Samples.Count -gt 1 -and ($Now-$State.Samples[0].Time).TotalSeconds -gt 300)){$State.Samples.RemoveAt(0)}
+    }
+    $trend=Get-WBMemoryTrend $State.Samples
+    if($trend.Warn -and $reading.Level -eq 'Healthy'){$reading.Level='Warning';$reading.CanClear=$false;$reading.Summary=$trend.Summary;$reading.Reasons+= $trend.Summary}
     if ($reading.Level -eq 'Unknown') { $State.Level='Unknown';$State.Pending='' }
     elseif ($reading.Level -eq 'Critical') { $State.Level='Critical';$State.Pending='' }
     elseif ($State.Level -eq 'Unknown' -and $reading.Level -eq 'Healthy') { $State.Level='Healthy';$State.Pending='' }
@@ -68,7 +105,7 @@ function Update-WBMemoryWatch {
     if ($notify) { $State.LastAlert=$Now }
     $journal=$changed -or ($Now-$State.LastJournal).TotalSeconds -ge 60
     if ($journal) {$State.LastJournal=$Now}
-    [pscustomobject]@{Level=$State.Level;Reading=$reading;Changed=$changed;Notify=[bool]$notify;ShouldJournal=[bool]$journal}
+    [pscustomobject]@{Level=$State.Level;Reading=$reading;Trend=$trend;Changed=$changed;Notify=[bool]$notify;ShouldJournal=[bool]$journal}
 }
 
 function Write-WBMemoryJournal {
