@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$version = '2.2.0'
+$version = '2.3.0'
 $release = Join-Path $root "releases/v$version"
 function Require($Condition,[string]$Message) { if (-not $Condition) { throw $Message } }
 function StreamHash($Stream) {

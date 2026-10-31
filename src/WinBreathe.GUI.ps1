@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ==============================================================================
-# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.2.0)
+# WinBreathe.GUI.ps1 - Native 6-Tab Dark Graphical Dashboard (v2.3.0)
 # Features:
 #   - Custom GDI+ Circular RAM Gauge + Live 60-Point Memory History Chart
 #   - Per-Tweak Interactive Checklist with Profile Selector & Preview (-WhatIf)
@@ -10,6 +10,7 @@
 #   - Leak-free GDI+ resource management & non-blocking async execution
 # ==============================================================================
 
+param([switch]$Watch)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -74,6 +75,8 @@ for ($i = 0; $i -lt 30; $i++) {
 }
 $script:LastSnap = Get-WBMemorySnapshot
 $script:MemoryWatch = New-WBMemoryWatchState
+$script:ReliefState = New-WBReliefState
+$script:ExitRequested = $false
 $script:MemoryJournalPath = Join-Path (Get-WBPaths).DataDir 'memory-watch.jsonl'
 $script:JournalWarningShown = $false
 $script:TelemetryErrorShown = $false
@@ -82,7 +85,7 @@ $script:TelemetryErrorShown = $false
 # Main Form Setup
 # ------------------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "WinBreathe v2.2.0 - Memory Watch and Windows Settings"
+$form.Text = "WinBreathe v2.3.0 - Memory Watch and Windows Settings"
 $form.Size = New-Object System.Drawing.Size(1020, 720)
 $form.MinimumSize = New-Object System.Drawing.Size(960, 680)
 $form.StartPosition = "CenterScreen"
@@ -121,7 +124,7 @@ if (Test-Path $logoPath) {
 $headerPanel.Controls.Add($logoBox)
 
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "WinBreathe v2.2.0"
+$lblTitle.Text = "WinBreathe v2.3.0"
 $lblTitle.Font = $fTitle
 $lblTitle.ForeColor = $cBlue
 $lblTitle.Location = New-Object System.Drawing.Point(78, 10)
@@ -165,7 +168,7 @@ function New-WBButton {
 }
 
 $btnQuickOpt   = New-WBButton -Text "Click Optimization" -X 540 -Y 18 -W 148 -H 38 -BgColor $cBlue     -FgColor $cCrust
-$btnQuickFlush = New-WBButton -Text "Memory Check"   -X 698 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cTeal
+$btnQuickFlush = New-WBButton -Text "RAM Relief"     -X 698 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cTeal
 $btnQuickRep   = New-WBButton -Text "Export Report"    -X 846 -Y 18 -W 138 -H 38 -BgColor $cSurface0 -FgColor $cText
 $headerPanel.Controls.AddRange(@($btnQuickOpt, $btnQuickFlush, $btnQuickRep))
 
@@ -432,6 +435,19 @@ $btnMemoryDetails = New-WBButton -Text 'Investigate Memory' -X 14 -Y 360 -W 210 
 $btnWatchTray = New-WBButton -Text 'Keep watching in tray' -X 234 -Y 360 -W 230 -H 32 -BgColor $cSurface0 -FgColor $cText
 $btnWindowsMemory = New-WBButton -Text 'Windows memory settings' -X 474 -Y 360 -W 250 -H 32 -BgColor $cSurface0 -FgColor $cText
 $tabDash.Controls.AddRange(@($btnMemoryDetails,$btnWatchTray,$btnWindowsMemory))
+$chkAutoRelief=New-Object System.Windows.Forms.CheckBox
+$chkAutoRelief.Text='Auto RAM relief'
+$chkAutoRelief.Location=New-Object System.Drawing.Point(740,365)
+$chkAutoRelief.Size=New-Object System.Drawing.Size(210,24)
+$chkAutoRelief.ForeColor=$cText
+$chkAutoRelief.Font=$fSmall
+$chkAutoRelief.Checked=[bool]$Watch
+$tabDash.Controls.Add($chkAutoRelief)
+$chkAutoRelief.Add_CheckedChanged({
+    $script:ReliefState=New-WBReliefState
+    $status=if($chkAutoRelief.Checked){'enabled'}else{'disabled'}
+    Write-GuiConsole "[INFO] Automatic RAM relief $status. Only verified idle Search/Widgets hosts qualify. AI, ABOS, VPN and WebView processes are excluded. No apps are closed."
+})
 $memoryTray = New-Object System.Windows.Forms.NotifyIcon
 $memoryTray.Icon = [System.Drawing.SystemIcons]::Information
 $memoryTray.Text = 'WinBreathe Memory Watch - starting'
@@ -449,7 +465,7 @@ function Show-WBWindow {
 $trayShow.Add_Click({Show-WBWindow})
 $memoryTray.Add_DoubleClick({Show-WBWindow})
 $memoryTray.Add_BalloonTipClicked({Show-WBWindow;$tabs.SelectedTab=$tabDash})
-$trayExit.Add_Click({$form.Close()})
+$trayExit.Add_Click({$script:ExitRequested=$true;$form.Close()})
 $btnWatchTray.Add_Click({$form.WindowState=[System.Windows.Forms.FormWindowState]::Minimized})
 $form.Add_Resize({
     if($form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized){$form.ShowInTaskbar=$false;$form.Hide()}
@@ -888,14 +904,20 @@ $helpBox.Font = $fBody
 $helpBox.ReadOnly = $true
 $helpBox.BorderStyle = "None"
 $helpBox.Text = @"
-WINBREATHE v2.2.0 - MEMORY WATCH AND WINDOWS SETTINGS
+WINBREATHE v2.3.0 - MEMORY WATCH AND WINDOWS SETTINGS
 
 MEMORY WATCH
 - Runs every three seconds while this window is open or minimized to its tray icon.
 - Watches physical RAM, total memory commitment and Windows kernel pools.
 - Choose Keep watching in tray to hide the window; double-click the tray icon to return.
-- Closing WinBreathe stops monitoring. No startup task or service is installed.
+- Closing the window keeps monitoring in the tray. Use the tray menu's Exit action to quit. No startup task or service is installed.
 - Warnings are advisory. Windows may suppress notifications. A driver leak can keep growing even if you close apps, so alerts cannot guarantee crash prevention.
+
+CONTROLLED RAM RELIEF
+- RAM Relief trims only verified idle Search/Widgets hosts. No apps are closed; AI, ABOS, VPN and generic WebView processes are excluded.
+- Auto RAM relief is opt-in. It waits for sustained pressure and uses cooldowns; ineffective attempts back off.
+- A working-set drop can refill. It does not free committed allocations or fix driver leaks, and pages may need to be read from disk again.
+- Growth warnings estimate risk from observed trends; they do not predict a crash with certainty.
 
 WHEN MEMORY PRESSURE IS HIGH
 - Save your work and pause new memory-heavy tasks.
@@ -920,7 +942,7 @@ REPORTS AND DIAGNOSTICS
 - Export Report presents a plain-language explanation before technical readings.
 - Memory Watch retains two small numeric journal files in LocalAppData\WinBreathe.
 - Private Commit is memory promised to an app, not physical RAM or guaranteed recoverable memory. Working sets contain shared pages.
-- CLI: -Status, -MemoryStatus, -Profile Balanced -WhatIf, -ExportReport, -Undo.
+- CLI: -Status, -MemoryStatus, -RelieveMemory, -Watch, -Profile Balanced -WhatIf, -ExportReport, -Undo.
 "@
 $tabHelp.Controls.Add($helpBox)
 
@@ -965,6 +987,7 @@ $procTimer.Add_Tick({
         }
     } catch {
         $procTimer.Stop()
+        if ($null -ne $script:ProcessOutput) { $script:ProcessOutput.Dispose(); $script:ProcessOutput=$null }
         if ($null -ne $script:ActiveProcess) {
             $script:ActiveProcess.Dispose()
             $script:ActiveProcess = $null
@@ -972,6 +995,7 @@ $procTimer.Add_Tick({
         $btnQuickOpt.Enabled   = $true
         $btnPreviewSel.Enabled = $true
         $btnApplySel.Enabled   = $true
+        Write-GuiConsole '[WARN] Task output monitoring failed. Check the log before running another action.' '#f9e2af'
     }
 })
 
@@ -1062,7 +1086,13 @@ $btnApplySel.Add_Click({
 })
 
 $btnQuickFlush.Add_Click({
-    Start-WBAsyncCommand -CliArguments "-Flush" -BannerText "Checking memory without closing apps..."
+    # Reuse cooldown state across manual and automatic runs; no child-process reset.
+    try {
+        $result=Invoke-WBMemoryRelief -State $script:ReliefState -Snapshot (Get-WBMemorySnapshot) -Confirm:$false
+        Write-GuiConsole ("[INFO] RAM Relief: "+$result.Reason)
+        foreach($row in $result.Results){Write-GuiConsole "[INFO] $($row.Name): $($row.Status)"}
+        if($result.Attempted){Write-GuiConsole "[INFO] Observed available RAM change: $($result.AvailableChangeMB) MB; commit change: $($result.CommitChangeMB) MB. Changes include other activity."}
+    } catch {Write-GuiConsole '[WARN] RAM relief unavailable. Active apps have not been closed.' '#f9e2af'}
 })
 
 $btnQuickRep.Add_Click({
@@ -1127,9 +1157,11 @@ function Update-DashboardMetrics {
     $memoryTray.Text="WinBreathe Memory Watch - $($watch.Level)"
     $memoryTray.Icon=if($watch.Level -in @('Critical','Warning','Unknown')){[System.Drawing.SystemIcons]::Warning}else{[System.Drawing.SystemIcons]::Information}
     $detail=if($watch.Reading.KernelConcern){'Large kernel pools: investigate drivers/filters. Browser tweaks cannot repair a kernel leak.'}
+        elseif($watch.Trend.Warn){$watch.Trend.Summary}
         elseif($watch.Level -ne $watch.Reading.Level -and $watch.Level -ne 'Unknown'){'Waiting for stable recovery before clearing the alert.'}
         else{switch($watch.Level){'Critical'{'Save work now and pause new workloads.'};'Warning'{'Save work and avoid starting more memory-heavy tasks.'};'Unknown'{'Memory reading unavailable. Risk cannot be assessed.'};default{'Memory headroom is available at this reading.'}}}
-    $lblMemoryWatch.Text="Memory Watch: $($watch.Level). $detail`r`nAlerts only; no automatic app closing or crash-prevention guarantee. Closing WinBreathe stops monitoring."
+    $reliefMode=if($chkAutoRelief.Checked){'Auto relief on'}else{'Auto relief off'}
+    $lblMemoryWatch.Text="Memory Watch: $($watch.Level). $detail`r`n$reliefMode. AI, ABOS and VPN protected. Keep WinBreathe open or in the tray."
     if($watch.Notify){
         Write-GuiConsole ("[WARN] Memory Watch: $($watch.Level). Commit $($watch.Reading.CommitPercent)% used; $($watch.Reading.CommitHeadroomMB) MB headroom. $detail") '#f9e2af'
         $memoryTray.ShowBalloonTip(12000,"Memory $($watch.Level)",("$detail Save work and pause new workloads."),[System.Windows.Forms.ToolTipIcon]::Warning)
@@ -1139,6 +1171,14 @@ function Update-DashboardMetrics {
         if(-not $saved -and -not $script:JournalWarningShown){Write-GuiConsole '[WARN] Memory history could not be saved; live readings remain available.' '#f9e2af';$script:JournalWarningShown=$true}
     }
     if($watch.Reading.Level -eq 'Unknown'){return}
+    try {
+        # Preview collects only the small candidate sample when auto relief is off.
+        $relief=Invoke-WBMemoryRelief -State $script:ReliefState -Snapshot $snap -Automatic -ObserveOnly:(-not $chkAutoRelief.Checked) -Confirm:$false
+        if($relief.Attempted){Write-GuiConsole "[INFO] Auto relief: $($relief.Trimmed) idle hosts trimmed; observed available RAM change $($relief.AvailableChangeMB) MB. No apps closed; benefit may be temporary."}
+    } catch {
+        $chkAutoRelief.Checked=$false
+        Write-GuiConsole '[WARN] Automatic relief stopped after an error; memory monitoring continues.' '#f9e2af'
+    }
     $script:LastSnap = $snap
     $script:RamHistory.Add([int]$snap.LoadPercent)
     $script:UsedHistory.Add([int]$snap.UsedRAMMB)
@@ -1146,8 +1186,10 @@ function Update-DashboardMetrics {
         $script:RamHistory.RemoveAt(0)
         $script:UsedHistory.RemoveAt(0)
     }
-    if (-not $gaugeCanvas.IsDisposed) { $gaugeCanvas.Invalidate() }
-    if (-not $chartCanvas.IsDisposed) { $chartCanvas.Invalidate() }
+    if ($form.Visible -and $form.WindowState -ne [System.Windows.Forms.FormWindowState]::Minimized) {
+        if (-not $gaugeCanvas.IsDisposed) { $gaugeCanvas.Invalidate() }
+        if (-not $chartCanvas.IsDisposed) { $chartCanvas.Invalidate() }
+    }
 }
 
 $telemetryTimer = New-Object System.Windows.Forms.Timer
@@ -1163,7 +1205,7 @@ Refresh-StartupGrid
 Refresh-StatusTab
 Update-DashboardMetrics
 
-Write-GuiConsole "WinBreathe v2.2.0 initialized." "#89b4fa"
+Write-GuiConsole "WinBreathe v2.3.0 initialized." "#89b4fa"
 Write-GuiConsole "Detected: $($sysProfile.OSCaption) | $($sysProfile.TotalRAMMB) MB RAM | $($sysProfile.DiskModel) ($($sysProfile.DiskMediaType))" "#94e2d5"
 Write-GuiConsole "Recommended Profile: $($sysProfile.RecommendedProfile) | Tier-1 Protected Processes Active." "#a6e3a1"
 Write-GuiConsole "Tip: Use 'Optimize Tweaks' -> 'Preview Selected (-WhatIf)' to inspect changes before applying." "#cdd6f4"
@@ -1174,8 +1216,14 @@ $form.Add_FormClosing({
     if ($null -ne $script:ActiveProcess) {
         $eventArgs.Cancel = $true
         Write-GuiConsole '[WARN] Wait for the running task to finish before closing this window.' '#f9e2af'
+        $script:ExitRequested=$false
+    } elseif($eventArgs.CloseReason -eq [Windows.Forms.CloseReason]::UserClosing -and -not $script:ExitRequested) {
+        $eventArgs.Cancel=$true
+        $form.WindowState=[Windows.Forms.FormWindowState]::Minimized
+        Write-GuiConsole '[INFO] Still watching in the tray. Choose Exit and stop Memory Watch from the tray menu to quit.'
     }
 })
+if($Watch){$form.Add_Shown({$form.WindowState=[Windows.Forms.FormWindowState]::Minimized})}
 
 try {
     # A modal ShowDialog loop can end when the form is hidden to the tray.

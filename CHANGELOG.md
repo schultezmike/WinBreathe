@@ -2,6 +2,16 @@
 
 All notable changes to **WinBreathe** are documented in this file.
 
+## [2.3.0] - 2026-10-30
+
+- Add controlled manual and opt-in automatic working-set relief for verified idle Windows Search/Widgets hosts, with identity, ownership, visible-window, CPU, pressure and cooldown gates.
+- Add sustained commit/kernel growth warnings, reset invalid trends, and bound history to 101 samples.
+- Protect ABOS, Codex helper processes, VM workers, local model runtimes and database servers; fail closed on unknown or protected ancestry during manual termination.
+- Keep monitoring in the tray when the window closes; add `-Watch` and stop hidden chart repainting.
+- Bound child output before line completion: the old line callback could allocate an arbitrarily large unterminated line despite its queue cap.
+- Preserve read-only `-Flush` compatibility. Do not restore older host/WebView termination behavior or claim lasting RAM savings from working-set drops.
+- Prepare tagged GitHub builds as drafts; verify downloaded assets before promoting the release and retiring superseded v2 downloads.
+
 ## [2.2.0] - 2026-10-27
 
 - Added Memory Watch with system-wide commit, kernel pool readings, tray alerts, sustained-warning/recovery logic and bounded numeric history.

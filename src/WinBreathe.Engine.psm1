@@ -1,5 +1,5 @@
 # ==============================================================================
-# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.2.0)
+# WinBreathe.Engine.psm1 - Core Optimization, Telemetry & Guard Module (v2.3.0)
 # Designed for Windows 11 / 10 (4-16 GB RAM, Mechanical HDDs & AI Dev Stacks)
 # License: MIT | Pure PowerShell 5.1+ | Zero External Dependencies
 # ==============================================================================
@@ -971,7 +971,7 @@ function Invoke-WBTweaks {
 
     $modeBanner = if ($WhatIf) { "DRY-RUN PREVIEW MODE (No changes will be written)" } else { "LIVE OPTIMIZATION ($ProfileName Profile)" }
     Write-WBLog "======================================================================" "HEAD"
-    Write-WBLog "  WinBreathe v2.2.0 - Universal Windows Optimizer - $modeBanner" "HEAD"
+    Write-WBLog "  WinBreathe v2.3.0 - Universal Windows Optimizer - $modeBanner" "HEAD"
     Write-WBLog "  OS: $($sysProfile.OSCaption) [$($sysProfile.OSFamily)] | RAM: $($sysProfile.TotalRAMMB) MB | Disk: $($sysProfile.DiskMediaType) ($($sysProfile.FreeDiskGB) GB Free)" "HEAD"
     Write-WBLog "======================================================================" "HEAD"
 
@@ -1199,7 +1199,7 @@ function Get-WBTopProcesses {
             $totalWS   = ($_.Group | Measure-Object -Property WorkingSet64 -Sum).Sum
             $totalPrivate = ($_.Group | Measure-Object -Property PrivateMemorySize64 -Sum).Sum
             $ramMB     = [int][math]::Round($totalWS / 1MB, 1)
-            $isProt    = $protectedSet.ContainsKey($nameLower)
+            $isProt    = (Test-WBProtectedProcessName $nameLower) -or $protectedSet.ContainsKey($nameLower)
             [PSCustomObject]@{
                 AppName      = $_.Name
                 ProcessCount = $_.Count
@@ -1215,12 +1215,20 @@ function Get-WBTopProcesses {
     return $groups
 }
 
+function Test-WBProtectedProcessName {
+    param([string]$Name)
+    # This minimum cannot be removed by editing the tweak catalog.
+    if($Name -match '^(chatgpt|codex.*|abos.*|node.*|python.*|vmmem.*|wsl.*|winbreathe.*|openvpn.*|wireguard.*|tailscale.*|happ|sing-box|xray|ollama.*|lm studio|lmstudio.*|llama.*|antigravity.*|claude.*|cursor.*|code|msedgewebview2|powershell|pwsh|postgres.*|redis.*|mysqld|sqlservr)$'){return $true}
+    return @((Get-WBTweakCatalog).protectedProcesses) -icontains $Name
+}
+
 function Stop-WBAppGroup {
     param([Parameter(Mandatory = $true)][string]$AppName)
     if ([System.Management.Automation.WildcardPattern]::ContainsWildcardCharacters($AppName)) {
         Write-WBLog 'Process wildcards are not allowed. Select one exact app name.' 'ERROR'
         return $false
     }
+    if(Test-WBProtectedProcessName $AppName){Write-WBLog "BLOCKED: '$AppName' is protected development, AI, VPN or system software." 'WARN';return $false}
     $catalog = Get-WBTweakCatalog
     foreach ($p in $catalog.protectedProcesses) {
         if ($p.Equals($AppName, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -1239,6 +1247,25 @@ function Stop-WBAppGroup {
         Write-WBLog "Process '$AppName' is no longer running." "INFO"
         return $false
     }
+
+    # An unknown executable can still be an AI/development child. Fail closed if
+    # ancestry cannot be read; never treat missing parent data as permission.
+    try {
+        $tree=@{}
+        foreach($item in @(Get-CimInstance Win32_Process -ErrorAction Stop)){$tree[[int]$item.ProcessId]=$item}
+        foreach($proc in $procs){
+            $cursor=[int]$proc.Id;$seen=@{}
+            while($cursor -ne 0){
+                if($seen.ContainsKey($cursor) -or -not $tree.ContainsKey($cursor)){throw 'Process ancestry is incomplete.'}
+                $seen[$cursor]=$true;$node=$tree[$cursor]
+                $parent=[int]$node.ParentProcessId
+                # Stop at the desktop shell: it is the root of normal user apps.
+                if($cursor -ne $proc.Id -and $node.Name -ieq 'explorer.exe'){break}
+                if($cursor -ne $proc.Id -and (Test-WBProtectedProcessName ([IO.Path]::GetFileNameWithoutExtension($node.Name)))){throw 'A protected application owns this process.'}
+                $cursor=$parent
+            }
+        }
+    } catch {Write-WBLog "BLOCKED: cannot safely close '$AppName'. $($_.Exception.Message)" 'WARN';return $false}
 
     $count = @($procs).Count
     $freedMB = [int][math]::Round((($procs | Measure-Object -Property WorkingSet64 -Sum).Sum) / 1MB, 0)
@@ -1526,7 +1553,7 @@ function Export-WBReport {
 <style>
 body{margin:0;background:#f3f5f8;color:#243247;font:16px/1.6 'Segoe UI',sans-serif}main{max-width:960px;margin:auto;padding:32px 20px}h1{font-size:32px;line-height:1.2}h2{margin-top:32px}h3{font-size:17px;margin:0}.intro{color:#526278}.cards{display:flex;flex-wrap:wrap;gap:16px}.card,.setting,details,.advice{background:white;border:1px solid #dce2ea;border-radius:12px;padding:20px}.card{flex:1;min-width:200px}.card strong{display:block;font-size:21px}.setting{margin:12px 0}.setting p{margin:8px 0 0}.badge{font-size:14px;color:#245381;font-weight:600}table{width:100%;border-collapse:collapse;background:white}td,th{text-align:left;padding:12px;border-bottom:1px solid #dce2ea;overflow-wrap:anywhere}th{background:#e9eef5}.technical{margin-top:48px;padding-top:24px;border-top:3px solid #b6c8df}.narrative{max-width:760px}details{margin-top:40px;border-top:4px solid #b6c8df}details[open]>summary{margin-bottom:20px}.scroll{overflow-x:auto}footer{margin-top:28px;color:#526278;font-size:14px}@media print{body{background:white}main{padding:0}.setting{break-inside:avoid}.technical{break-before:page}}
 </style></head><body><main>
-<h1>Your computer report</h1><p class="intro">WinBreathe 2.2.0 &middot; $stamp &middot; $(Html $sys.OSCaption)</p>
+<h1>Your computer report</h1><p class="intro">WinBreathe 2.3.0 &middot; $stamp &middot; $(Html $sys.OSCaption)</p>
 <!-- Technical readings are presented after the narrative. -->
 <!-- <div class="cards"><div class="card">Memory in use<strong>$usedGB / $totalGB GB</strong>$($sys.LoadPercent)% in use &middot; $freeGB GB available</div><div class="card">Storage space available<strong>$($sys.FreeDiskGB) GB</strong>On $(Html $sys.SystemDrive)</div><div class="card">Settings matching your profile<strong>$matching / $($recommended.Count)</strong>$(Html $ProfileName) profile &middot; available settings only</div></div> -->
 <section class="narrative"><h2>1. What is happening on your computer</h2>$findingsHtml
@@ -1545,6 +1572,7 @@ body{margin:0;background:#f3f5f8;color:#243247;font:16px/1.6 'Segoe UI',sans-ser
 
 
 . (Join-Path $PSScriptRoot 'WinBreathe.MemoryWatch.ps1')
+. (Join-Path $PSScriptRoot 'WinBreathe.MemoryRelief.ps1')
 
 Export-ModuleMember -Function @(
     'Get-WBPaths',
@@ -1553,6 +1581,9 @@ Export-ModuleMember -Function @(
     'Get-WBTweakCatalog',
     'Get-WBMemorySnapshot',
     'Get-WBMemoryPressure',
+    'Test-WBProtectedProcessName',
+    'New-WBReliefState',
+    'Invoke-WBMemoryRelief',
     'New-WBMemoryWatchState',
     'Update-WBMemoryWatch',
     'Write-WBMemoryJournal',

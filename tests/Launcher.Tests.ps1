@@ -3,7 +3,7 @@
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=Split-Path -Parent $PSScriptRoot
-$exe=Join-Path $root 'releases/v2.2.0/WinBreathe-v2.2.0-x64.exe'
+$exe=Join-Path $root 'releases/v2.3.0/WinBreathe-v2.3.0-x64.exe'
 $assembly=[Reflection.Assembly]::LoadFile($exe)
 $program=$assembly.GetType('WinBreatheHost.Program')
 $flags=[Reflection.BindingFlags]'NonPublic,Static'
@@ -58,7 +58,7 @@ try{
     if($joined -notmatch '\[PREVIEW\]' -or $joined -notmatch '0 applied;' -or $joined -match '\[ERROR\]|APPLIED \['){throw 'Compiled profile preview reported errors or live application'}
 }finally{$buffer.Dispose();$child.Dispose()}
 Write-Host 'PASS: compiled Balanced profile preview completes with no applied tweaks'
-foreach($name in @('WinBreathe.Engine.psm1','WinBreathe.MemoryWatch.ps1','WinBreathe.ps1','WinBreathe.GUI.ps1','WinBreathe.ProcessOutput.cs','tweaks.json')) {
+foreach($name in @('WinBreathe.Engine.psm1','WinBreathe.MemoryWatch.ps1','WinBreathe.MemoryRelief.ps1','WinBreathe.MemoryRelief.cs','WinBreathe.ps1','WinBreathe.GUI.ps1','WinBreathe.ProcessOutput.cs','tweaks.json')) {
     $stream=$assembly.GetManifestResourceStream($name)
     if(-not $stream){throw "Missing embedded resource $name"}
     $sha=[Security.Cryptography.SHA256]::Create()

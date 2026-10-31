@@ -44,6 +44,22 @@ $gapState=New-WBMemoryWatchState
 [void](Update-WBMemoryWatch $gapState $warning ($now.AddSeconds(3)))
 $afterGap=Update-WBMemoryWatch $gapState $warning ($now.AddSeconds(90))
 Assert (-not $afterGap.Notify -and $afterGap.Level -eq 'Unknown') 'A sleep/collection gap does not count as sustained observed pressure'
+# Forecast before fixed thresholds, with no single-spike extrapolation.
+$growing=New-WBMemoryWatchState
+foreach($second in 0,15,30,45,60,75){$growth=Update-WBMemoryWatch $growing (Sample -Commit (12500+10*$second)) ($now.AddSeconds($second))}
+Assert ($growth.Level -eq 'Warning' -and $growth.Trend.MinutesToCommitLimit -gt 0) 'Sustained commit growth warns before 85 percent usage'
+$kernelGrowing=New-WBMemoryWatchState
+foreach($second in 0,15,30,45,60,75){$growth=Update-WBMemoryWatch $kernelGrowing (Sample -Paged (700+5*$second)) ($now.AddSeconds($second))}
+Assert ($growth.Trend.Warn -and $growth.Level -eq 'Warning') 'Steady kernel growth warns before fixed pool thresholds'
+$spike=New-WBMemoryWatchState
+foreach($second in 0,15,30,45){[void](Update-WBMemoryWatch $spike (Sample -Commit 12000) ($now.AddSeconds($second)))}
+$one=Update-WBMemoryWatch $spike (Sample -Commit 15000) ($now.AddSeconds(60))
+Assert (-not $one.Trend.Warn) 'One allocation spike is not labeled sustained growth'
+[void](Update-WBMemoryWatch $growing ([pscustomobject]@{}) ($now.AddSeconds(78)))
+Assert ($growing.Samples.Count -eq 0) 'Invalid reading clears forecast history'
+$bounded=New-WBMemoryWatchState
+for($i=0;$i -lt 400;$i++){[void](Update-WBMemoryWatch $bounded $normal ($now.AddSeconds(3*$i)))}
+Assert ($bounded.Samples.Count -le 101) 'Growth history stays bounded in long sessions'
 $xml=@'
 <Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><System><Provider Name="Microsoft-Windows-Resource-Exhaustion-Detector"/><EventID>2004</EventID><TimeCreated SystemTime="2026-10-27T00:33:57Z"/></System><UserData><MemoryExhaustionInfo xmlns="http://www.microsoft.com/Windows/Resource/Exhaustion/Detector/Events"><SystemInfo><SystemCommitLimit>21340155904</SystemCommitLimit><SystemCommitCharge>21073801216</SystemCommitCharge><PagedPoolUsage>10695479296</PagedPoolUsage><NonPagedPoolUsage>515018752</NonPagedPoolUsage></SystemInfo><PagedPoolInfo><Tag_1><Name>FMfn</Name><PoolUsed>8774238528</PoolUsed></Tag_1></PagedPoolInfo></MemoryExhaustionInfo></UserData></Event>
 '@
@@ -82,6 +98,14 @@ try{
     $count=0;$omitted=$false
     while(-not $buffer.Complete){$line=$buffer.ReadAvailable();if($null -ne $line){$count++;if($line -match 'omitted to bound memory'){$omitted=$true}}}
     Assert ($count -le 2001 -and $omitted) 'Child output memory is capped and omitted output is disclosed'
+}finally{$buffer.Dispose();$child.Dispose()}
+$start.Arguments='-NoProfile -NonInteractive -EncodedCommand '+[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("1..10000 | ForEach-Object { [Console]::Write(('x' * 1024)) }"))
+$child=[Diagnostics.Process]::Start($start);$buffer=New-Object WBProcessOutput($child)
+try {
+    Assert ($child.WaitForExit(30000)) 'A ten-megabyte line without newlines drains without blocking'
+    $deadline=[DateTime]::UtcNow.AddSeconds(10);$longLine=$null
+    while(-not $buffer.Complete -and [DateTime]::UtcNow -lt $deadline){$line=$buffer.ReadAvailable();if($null -ne $line){$longLine=$line}else{Start-Sleep -Milliseconds 10}}
+    Assert ($buffer.Complete -and $null -ne $longLine -and $longLine.Length -lt 4200 -and $longLine.EndsWith('[truncated]')) 'Unterminated output is bounded before a full line is allocated'
 }finally{$buffer.Dispose();$child.Dispose()}
 # A source-module update in a long-lived PowerShell host must not reuse the
 # v2.1.2 native class, which did not expose GetPerformanceInfo.
